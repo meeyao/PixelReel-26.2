@@ -6,6 +6,8 @@ import com.pixelreel.blockentities.ScreenPanelBlockEntity;
 import com.pixelreel.registry.ModBlockEntities;
 import com.pixelreel.registry.ModBlocks;
 import com.pixelreel.server.ScreenControllerLogic;
+import com.mojang.serialization.MapCodec;
+import com.mojang.serialization.codecs.RecordCodecBuilder;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.server.level.ServerLevel;
@@ -37,6 +39,11 @@ import org.jspecify.annotations.Nullable;
 
 /** this adds collision to the display i think this is needed imagine getting blown up my a creeper and the movie turns off lame */
 public class DisplayBlock extends BaseEntityBlock {
+	public static final MapCodec<DisplayBlock> CODEC = RecordCodecBuilder.mapCodec(instance ->
+		instance.group(
+			propertiesCodec(),
+			net.minecraft.util.StringRepresentable.fromEnum(DisplayType::values).fieldOf("display_type").forGetter(DisplayBlock::type)
+		).apply(instance, DisplayBlock::new));
 	public static final EnumProperty<Direction> FACING = HorizontalDirectionalBlock.FACING;
 	public static final BooleanProperty POWERED = BlockStateProperties.POWERED;
 
@@ -50,6 +57,11 @@ public class DisplayBlock extends BaseEntityBlock {
 
 	public DisplayType type() {
 		return this.type;
+	}
+
+	@Override
+	protected MapCodec<? extends DisplayBlock> codec() {
+		return CODEC;
 	}
 
 	@Override

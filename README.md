@@ -1,6 +1,6 @@
 # pixelReel
 
-Fabric mod for **Minecraft Java Edition 26.3-snapshot-5** that lets you place televisions and cinema screens in your world and watch **live TV** and **on-demand media** together with friends.
+Fabric mod for **Minecraft Java Edition 26.2** that lets you place televisions and cinema screens in your world and watch **live TV** and **on-demand media** together with friends.
 
 Live channels come from a Tunarr (or any M3U + XMLTV) playlist. Movies and shows can come from **Jellyfin**, **Emby**, or **Plex**. Each display keeps its own channel or title, multiple screens can play at once, and audio is positional.
 
@@ -10,9 +10,9 @@ Live channels come from a Tunarr (or any M3U + XMLTV) playlist. Movies and shows
 | Requirement                   | Notes                                                                                             |
 | ----------------------------- | ------------------------------------------------------------------------------------------------- |
 | **Java 25+**                  | Required by this snapshot toolchain.                                                              |
-| **Minecraft 26.3-snapshot-5** | Built against this snapshot specifically.                                                         |
+| **Minecraft 26.2** | Built against this stable release.                                                          |
 | **Fabric Loader** `>=0.19.3`  | Pinned in `gradle.properties`.                                                                    |
-| **Fabric API**                | Use the build matching `26.3` (see `gradle.properties`).                                          |
+| **Fabric API**                | Use the build matching `26.2` (see `gradle.properties`).                                          |
 | **VLC (64-bit)**              | Needed on each **client** for video/audio. Install from [videolan.org](https://www.videolan.org). |
 
 
@@ -54,7 +54,7 @@ run-client.bat
 
 ## Installing
 
-1. Install Fabric Loader for Minecraft **26.3-snapshot-5**.
+1. Install Fabric Loader for Minecraft **26.2**.
 2. Put **Fabric API** in your `mods` folder.
 3. Put `pixelreel-1.0.0.jar` in `mods`.
 4. Install **64-bit VLC** on every client that should see video.
@@ -205,7 +205,7 @@ Each client decodes the stream locally with its own VLC. Credentials are never s
 
 What already works in this snapshot build — crossed out as complete:
 
-- [x] ~~Fabric mod targeting Minecraft **26.3-snapshot-5**~~
+- [x] ~~Fabric mod targeting Minecraft **26.2**~~
 - [x] ~~Five display sizes (Compact TV, Wall TV, Ultrawide, Cinema, Curved Cinema)~~
 - [x] ~~Live TV via Tunarr / M3U + XMLTV guide~~
 - [x] ~~Jellyfin, Emby, and Plex integration~~
@@ -229,7 +229,7 @@ What already works in this snapshot build — crossed out as complete:
 | **Movie scheduler** | Planned | Medium | Queue showtimes (date/time + title or channel). Auto power-on, start playback, and optional lobby announcements for cinema nights. |
 | **YouTube / streaming integration** | Planned | Medium | Play YouTube (and possibly other stream sources) on displays alongside Tunarr and media servers. Exact providers TBD. |
 | **Posters as paintings** | Planned | Medium | Place movie/show posters in the world as painting-style decor (from library artwork), not only inside the browse menus. |
-| **Fabric on stable versions** | Planned | High | Port from `26.3-snapshot-5` to older/stable Fabric target **1.20.1**. |
+| **Fabric on stable versions** | Planned | High | Port from `26.2` to older/stable Fabric target **1.20.1**. |
 | **NeoForge support** | Planned | High | First-class NeoForge build so servers/clients on NeoForge can run pixelReel. |
 | **Forge support** | Planned | Medium | Forge port after (or alongside) NeoForge, depending on version demand. |
 

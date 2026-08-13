@@ -1,7 +1,9 @@
 package com.pixelreel.blocks;
 
+import net.minecraft.util.StringRepresentable;
+
 /** each display */
-public enum DisplayType {
+public enum DisplayType implements StringRepresentable {
 	COMPACT_TELEVISION("compact_television", 3, 2, 1, 0.0F, 0.0F, 48.0F, 32.0F, 1.0F, 0.0F, 1, 16.0F),
 	WALL_TELEVISION("wall_television", 6, 4, 2, 0.0F, 0.0F, 96.0F, 64.0F, 1.0F, 0.0F, 1, 24.0F),
 	ULTRAWIDE_MONITOR("ultrawide_monitor", 8, 4, 3, 0.0F, 0.0F, 128.0F, 64.0F, 1.0F, 0.0F, 1, 24.0F),
@@ -50,6 +52,11 @@ public enum DisplayType {
 	}
 
 	public String id() {
+		return this.id;
+	}
+
+	@Override
+	public String getSerializedName() {
 		return this.id;
 	}
 

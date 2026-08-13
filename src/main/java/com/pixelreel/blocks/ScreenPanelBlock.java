@@ -2,6 +2,7 @@ package com.pixelreel.blocks;
 
 import com.pixelreel.blockentities.DisplayBlockEntity;
 import com.pixelreel.blockentities.ScreenPanelBlockEntity;
+import com.mojang.serialization.MapCodec;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.player.Player;
@@ -19,10 +20,16 @@ import org.jspecify.annotations.Nullable;
 
 /** added invisible collision over the active screen */
 public class ScreenPanelBlock extends BaseEntityBlock {
+	public static final MapCodec<ScreenPanelBlock> CODEC = simpleCodec(ScreenPanelBlock::new);
 	private static final VoxelShape FALLBACK = net.minecraft.world.level.block.Block.box(0.0, 0.0, 7.0, 16.0, 16.0, 9.0);
 
 	public ScreenPanelBlock(Properties properties) {
 		super(properties);
+	}
+
+	@Override
+	protected MapCodec<? extends ScreenPanelBlock> codec() {
+		return CODEC;
 	}
 
 	@Override

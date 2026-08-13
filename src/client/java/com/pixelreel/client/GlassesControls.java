@@ -24,7 +24,7 @@ public final class GlassesControls {
 	public static void register() {
 		removeGlassesKey = new KeyMapping(
 			"key.pixelreel.remove_pixel_glasses",
-			InputConstants.Type.KEYBOARD,
+			InputConstants.Type.KEYSYM,
 			InputConstants.KEY_X,
 			CATEGORY
 		);

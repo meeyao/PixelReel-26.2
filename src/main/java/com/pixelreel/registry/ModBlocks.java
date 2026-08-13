@@ -38,7 +38,7 @@ public final class ModBlocks {
 			.sound(SoundType.METAL)
 			.noOcclusion()
 			.forceSolidOff()
-			.pushReaction(PushReaction.IMMOVEABLE)
+			.pushReaction(PushReaction.BLOCK)
 			.isRedstoneConductor((state, level, pos) -> false)
 			.isSuffocating((state, level, pos) -> false)
 			.isViewBlocking((state, level, pos) -> false);
@@ -55,7 +55,7 @@ public final class ModBlocks {
 			.strength(-1.0F, 3600000.0F)
 			.noOcclusion()
 			.forceSolidOff()
-			.pushReaction(PushReaction.IMMOVEABLE)
+			.pushReaction(PushReaction.BLOCK)
 			.noLootTable()
 			.isRedstoneConductor((state, level, pos) -> false)
 			.isSuffocating((state, level, pos) -> false)
