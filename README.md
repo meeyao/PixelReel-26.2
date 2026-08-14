@@ -57,7 +57,7 @@ gradlew.bat clean build
 The installable JAR is:
 
 ```text
-build\libs\pixelreel-1.1.0.jar
+build\libs\pixelreel-1.1.1.jar
 ```
 
 Use the JAR **without** `-sources`.
@@ -72,7 +72,7 @@ run-client.bat
 
 1. Install Fabric Loader for Minecraft **26.2**.
 2. Put **Fabric API** in your `mods` folder.
-3. Put `pixelreel-1.1.0.jar` in `mods`.
+3. Put `pixelreel-1.1.1.jar` in `mods`.
 4. Install **64-bit VLC** on every client that should see video.
 
 The mod runs on clients and servers (`environment: *`). For multiplayer, **both sides** need the mod. VLC is only required on clients.
