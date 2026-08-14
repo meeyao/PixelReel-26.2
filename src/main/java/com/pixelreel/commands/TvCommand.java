@@ -22,6 +22,7 @@ import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Optional;
+import java.util.function.Predicate;
 import java.util.function.Supplier;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
@@ -97,6 +98,9 @@ public final class TvCommand {
 
 	private static int channels(CommandContext<CommandSourceStack> context) {
 		CommandSourceStack source = context.getSource();
+		if (!requirePermission(source, CinemaPermissions::canPlayTunarr)) {
+			return 0;
+		}
 		MinecraftServer server = source.getServer();
 		ChannelService.INSTANCE.channels(false).whenComplete((channels, error) -> server.execute(() -> {
 			if (channels == null || channels.isEmpty()) {
@@ -132,6 +136,9 @@ public final class TvCommand {
 
 	private static int channel(CommandContext<CommandSourceStack> context) {
 		CommandSourceStack source = context.getSource();
+		if (!requirePermission(source, CinemaPermissions::canPlayTunarr)) {
+			return 0;
+		}
 		String query = StringArgumentType.getString(context, "channel").trim();
 		DisplayBlockEntity display = lookedAtDisplay(source);
 		if (display == null) {
@@ -164,6 +171,9 @@ public final class TvCommand {
 	}
 
 	private static int tune(CommandSourceStack source, DisplayBlockEntity display, Channel channel) {
+		if (!requirePermission(source, CinemaPermissions::canPlayTunarr)) {
+			return 0;
+		}
 		display.tuneTo(channel);
 		display.setPowered(true);
 		source.sendSuccess(
@@ -174,6 +184,9 @@ public final class TvCommand {
 
 	private static int control(CommandContext<CommandSourceStack> context, ScreenAction action) {
 		CommandSourceStack source = context.getSource();
+		if (!requirePermission(source, player -> mayControlCommand(player, action))) {
+			return 0;
+		}
 		DisplayBlockEntity display = lookedAtDisplay(source);
 		if (display == null) {
 			source.sendFailure(Component.translatable("command.pixelreel.no_screen_in_sight"));
@@ -205,6 +218,9 @@ public final class TvCommand {
 
 	private static int volume(CommandContext<CommandSourceStack> context) {
 		CommandSourceStack source = context.getSource();
+		if (!requirePermission(source, CinemaPermissions::canControlPlayback)) {
+			return 0;
+		}
 		int percent = IntegerArgumentType.getInteger(context, "percent");
 		DisplayBlockEntity display = lookedAtDisplay(source);
 		if (display == null) {
@@ -218,6 +234,9 @@ public final class TvCommand {
 
 	private static int guide(CommandContext<CommandSourceStack> context) {
 		CommandSourceStack source = context.getSource();
+		if (!requirePermission(source, CinemaPermissions::canBrowse)) {
+			return 0;
+		}
 		MinecraftServer server = source.getServer();
 		ChannelService.INSTANCE.channels(false).whenComplete((channels, error) -> server.execute(() -> {
 			if (channels == null || channels.isEmpty()) {
@@ -290,9 +309,11 @@ public final class TvCommand {
 			source.sendSuccess(
 				() -> statusLine("command.pixelreel.status.channel", Component.literal(display.getChannelNumber() + " - " + display.getChannelName())), false
 			);
-			source.sendSuccess(
-				() -> statusLine("command.pixelreel.status.stream_host", Component.literal(ChannelService.hostOnly(display.getStreamUrl()))), false
-			);
+			if (canSeeStreamHost(source)) {
+				source.sendSuccess(
+					() -> statusLine("command.pixelreel.status.stream_host", Component.literal(ChannelService.hostOnly(display.getStreamUrl()))), false
+				);
+			}
 			GuideInfo guide = ChannelService.INSTANCE.guideFor(display.getChannelId());
 			if (guide.hasNow()) {
 				source.sendSuccess(() -> statusLine("command.pixelreel.status.programme", Component.literal(guide.nowTitle())), false);
@@ -332,6 +353,9 @@ public final class TvCommand {
 
 	private static int reload(CommandContext<CommandSourceStack> context) {
 		CommandSourceStack source = context.getSource();
+		if (!requirePermission(source, CinemaPermissions::canConfigureTunarr)) {
+			return 0;
+		}
 		MinecraftServer server = source.getServer();
 		source.sendSuccess(() -> Component.translatable("command.pixelreel.reload.started"), false);
 		ChannelService.INSTANCE.channels(true).whenComplete((channels, error) -> server.execute(() -> {
@@ -349,6 +373,9 @@ public final class TvCommand {
 
 	private static int jellyfinStatus(CommandContext<CommandSourceStack> context) {
 		CommandSourceStack source = context.getSource();
+		if (!requirePermission(source, CinemaPermissions::canRefreshLibrary)) {
+			return 0;
+		}
 		JellyfinStatus status = JellyfinService.INSTANCE.lastStatus();
 		source.sendSuccess(
 			() -> Component.translatable(
@@ -414,6 +441,9 @@ public final class TvCommand {
 
 	private static int rebuild(CommandContext<CommandSourceStack> context) {
 		CommandSourceStack source = context.getSource();
+		if (!requirePermission(source, CinemaPermissions::canControlPlayback)) {
+			return 0;
+		}
 		DisplayBlockEntity display = lookedAtDisplay(source);
 		if (display == null) {
 			source.sendFailure(Component.translatable("command.pixelreel.no_screen_in_sight"));
@@ -439,5 +469,35 @@ public final class TvCommand {
 			return DisplayBlock.controllerAt(player.level(), blockHit.getBlockPos());
 		}
 		return null;
+	}
+
+	private static boolean requirePermission(CommandSourceStack source, Predicate<ServerPlayer> permission) {
+		ServerPlayer player = source.getPlayer();
+		if (player == null || permission.test(player)) {
+			return true;
+		}
+		source.sendFailure(Component.translatable("command.pixelreel.no_permission"));
+		return false;
+	}
+
+	private static boolean mayControlCommand(ServerPlayer player, ScreenAction action) {
+		return switch (action) {
+			case POWER_TOGGLE, POWER_ON, POWER_OFF, CHANNEL_NEXT, CHANNEL_PREVIOUS -> CinemaPermissions.canChangeContent(player)
+				|| CinemaPermissions.canPlayTunarr(player);
+			case VOLUME_SET, STOP -> CinemaPermissions.canStop(player);
+			case RESUME, UNPAUSE, PAUSE, PAUSE_TOGGLE -> CinemaPermissions.canPause(player);
+			case SEEK, SEEK_FORWARD, SEEK_BACKWARD, RESTART -> CinemaPermissions.canSeek(player);
+			case PLAY_NEXT_NOW, CANCEL_NEXT, CYCLE_SUBTITLE, SELECT_SUBTITLE -> CinemaPermissions.canChangeContent(player);
+			case REPORT_DURATION -> false;
+		};
+	}
+
+	private static boolean canSeeStreamHost(CommandSourceStack source) {
+		ServerPlayer player = source.getPlayer();
+		return player == null
+			|| CinemaPermissions.canConfigureTunarr(player)
+			|| CinemaPermissions.canConfigureJellyfin(player)
+			|| CinemaPermissions.canConfigureEmby(player)
+			|| CinemaPermissions.canConfigurePlex(player);
 	}
 }

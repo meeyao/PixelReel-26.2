@@ -59,6 +59,10 @@ public final class ClientNetworking {
 			printClientStatus(payload.pos())
 		);
 
+		ClientPlayNetworking.registerGlobalReceiver(ModNetworkPayloads.PlaybackUrl.TYPE, (payload, context) ->
+			PlaybackManager.INSTANCE.acceptPlaybackUrl(payload.pos(), payload.channelEpoch(), payload.streamUrl(), payload.subtitleUrl())
+		);
+
 		ClientPlayNetworking.registerGlobalReceiver(ModNetworkPayloads.MediaFeatures.TYPE, (payload, context) -> {
 			ClientMediaCache.INSTANCE.acceptFeatures(payload);
 			if (Minecraft.getInstance().gui.screen() instanceof MediaSourceScreen screen) {
@@ -124,6 +128,12 @@ public final class ClientNetworking {
 	public static void requestChannels(boolean forceRefresh) {
 		if (ClientPlayNetworking.canSend(ModNetworkPayloads.RequestChannels.TYPE)) {
 			ClientPlayNetworking.send(new ModNetworkPayloads.RequestChannels(forceRefresh));
+		}
+	}
+
+	public static void requestPlaybackUrl(BlockPos pos, int channelEpoch) {
+		if (ClientPlayNetworking.canSend(ModNetworkPayloads.RequestPlaybackUrl.TYPE)) {
+			ClientPlayNetworking.send(new ModNetworkPayloads.RequestPlaybackUrl(pos, channelEpoch));
 		}
 	}
 
@@ -289,7 +299,7 @@ public final class ClientNetworking {
 		if (!(minecraft.level.getBlockEntity(pos) instanceof DisplayBlockEntity display)) {
 			return;
 		}
-		ChannelPlayer player = PlaybackManager.INSTANCE.player(display.getStreamUrl());
+		ChannelPlayer player = PlaybackManager.INSTANCE.player(display);
 		if (player == null) {
 			minecraft.player.sendSystemMessage(Component.translatable("chat.pixelreel.status.player_idle"));
 			return;
@@ -302,7 +312,7 @@ public final class ClientNetworking {
 				"chat.pixelreel.status.player",
 				player.status().name(),
 				frame,
-				ChannelService.hostOnly(display.getStreamUrl()),
+				"authorized",
 				Math.round(player.bufferingProgress()) + "%",
 				player.errorDetail().isEmpty() ? "-" : player.errorDetail()
 			)

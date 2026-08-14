@@ -303,10 +303,13 @@ public class DisplayBlockEntity extends BlockEntity {
 	}
 
 	public boolean hasChannel() {
-		return !this.streamUrl.isEmpty() && (!this.channelId.isEmpty() || !this.jellyfinItemId.isEmpty());
+		return !this.channelId.isEmpty() || !this.jellyfinItemId.isEmpty();
 	}
 
 	public boolean shouldPlay() {
+		if (this.level != null && !this.level.isClientSide()) {
+			return this.powered && !this.suspended && !this.streamUrl.isEmpty() && this.hasChannel();
+		}
 		return this.powered && !this.suspended && this.hasChannel();
 	}
 
@@ -491,6 +494,7 @@ public class DisplayBlockEntity extends BlockEntity {
 	}
 
 	public void applySubtitleSelection(int subtitleIndex, String subtitleUrl, @Nullable String newStreamUrl) {
+		String previousSubtitleUrl = this.subtitleFetchUrl;
 		this.selectedSubtitleIndex = subtitleIndex;
 		this.subtitleFetchUrl = clampLength(subtitleUrl == null ? "" : subtitleUrl, MAX_STREAM_URL);
 		if (newStreamUrl != null && !newStreamUrl.isBlank()) {
@@ -501,6 +505,9 @@ public class DisplayBlockEntity extends BlockEntity {
 				this.streamUrl = next;
 				this.channelEpoch++;
 			}
+		}
+		if (!this.subtitleFetchUrl.equals(previousSubtitleUrl)) {
+			this.channelEpoch++;
 		}
 		this.markDirtyAndSync();
 	}
@@ -688,7 +695,7 @@ public class DisplayBlockEntity extends BlockEntity {
 		output.putString(KEY_CHANNEL_ID, this.channelId);
 		output.putInt(KEY_CHANNEL_NUMBER, this.channelNumber);
 		output.putString(KEY_CHANNEL_NAME, this.channelName);
-		output.putString(KEY_STREAM_URL, this.streamUrl);
+		output.putString(KEY_STREAM_URL, "");
 		output.putFloat(KEY_VOLUME, this.volume);
 		output.putInt(KEY_EPOCH, this.channelEpoch);
 		output.putString(KEY_MEDIA_SOURCE, this.mediaSource.name());
@@ -701,7 +708,7 @@ public class DisplayBlockEntity extends BlockEntity {
 		output.putString(KEY_MEDIA_TITLE, this.mediaTitle);
 		output.putString(KEY_MEDIA_OVERVIEW, this.mediaOverview);
 		output.putInt(KEY_MEDIA_YEAR, this.mediaYear);
-		output.putString(KEY_MEDIA_IMAGE, this.mediaImageUrl);
+		output.putString(KEY_MEDIA_IMAGE, "");
 		output.putLong(KEY_POS_MS, this.currentPlaybackPositionMs());
 		output.putLong(KEY_DUR_MS, this.playbackDurationMs);
 		output.putBoolean(KEY_PAUSED, this.playbackPaused);
@@ -716,10 +723,10 @@ public class DisplayBlockEntity extends BlockEntity {
 		output.putBoolean(KEY_HDR, this.hdrContent);
 		output.putInt(KEY_SUB_INDEX, this.selectedSubtitleIndex);
 		SubtitleTrack.writeList(output, KEY_SUB_TRACKS, this.subtitleTracks);
-		output.putString(KEY_SUB_URL, this.subtitleFetchUrl);
+		output.putString(KEY_SUB_URL, "");
 		output.putInt(KEY_PLEX_MEDIA, this.plexMediaIndex);
 		output.putInt(KEY_PLEX_PART, this.plexPartIndex);
-		output.putString(KEY_PLEX_PART_KEY, this.plexPartKey);
+		output.putString(KEY_PLEX_PART_KEY, "");
 	}
 
 	@Override

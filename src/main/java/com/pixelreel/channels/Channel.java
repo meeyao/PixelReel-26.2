@@ -36,6 +36,14 @@ public record Channel(String id, int number, String name, String logoUrl, String
 		return !this.streamUrl.isEmpty();
 	}
 
+	public Channel withoutStreamUrl() {
+		return this.withoutClientSecrets();
+	}
+
+	public Channel withoutClientSecrets() {
+		return new Channel(this.id, this.number, this.name, "", "", "");
+	}
+
 	public String normalizedName() {
 		return normalize(this.name);
 	}

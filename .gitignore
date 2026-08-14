@@ -1,41 +1,61 @@
-# gradle
+# Gradle / build outputs
 .gradle/
 build/
 out/
 classes/
+.gradletasknamecache
 
-# loom / fabric
+# Fabric Loom / Minecraft dev runs
 run/
+runs/
+logs/
+crash-reports/
+saves/
+mods/
+config/
+resourcepacks/
+shaderpacks/
+screenshots/
+options.txt
+optionsof.txt
+servers.dat
+usernamecache.json
 
-# eclipse
-*.launch
-bin/
-.settings/
-.classpath
-.project
-
-# idea
-.idea/
-*.iml
-*.ipr
-*.iws
-
-# vscode / cursor
-.vscode/
-.cursor/
-
-# os
-.DS_Store
-Thumbs.db
-Desktop.ini
-
-# java / logs
+# Java diagnostics
+hs_err_pid*.log
 hs_err_*.log
+replay_pid*.log
 replay_*.log
 *.hprof
 *.jfr
 *.log
 
-# secrets
+# Local secrets / environment
 .env
 .env.*
+!.env.example
+*.local
+*.secret
+*.secrets
+secrets.*
+credentials.*
+pixelreel.json
+pixelreel-*.json
+
+# Editor / IDE files
+*.launch
+bin/
+.settings/
+.classpath
+.project
+.idea/
+*.iml
+*.ipr
+*.iws
+.vscode/
+.cursor/
+
+# OS files
+.DS_Store
+Thumbs.db
+Desktop.ini

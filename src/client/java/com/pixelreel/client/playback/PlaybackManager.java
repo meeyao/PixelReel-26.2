@@ -36,6 +36,8 @@ public final class PlaybackManager {
 
 	private final Map<String, ChannelPlayer> players = new HashMap<>();
 	private final Map<String, Integer> playerEpochs = new HashMap<>();
+	private final Map<BlockPos, PlaybackTicket> playbackTickets = new HashMap<>();
+	private final Set<String> pendingTicketRequests = new HashSet<>();
 	private final Set<BlockPos> nearbyControllers = new HashSet<>();
 	private final Set<String> endedReports = new HashSet<>();
 	private final Set<String> durationReports = new HashSet<>();
@@ -48,6 +50,11 @@ public final class PlaybackManager {
 		return url == null || url.isEmpty() ? null : this.players.get(url);
 	}
 
+	public @Nullable ChannelPlayer player(DisplayBlockEntity display) {
+		String url = this.playbackUrl(display);
+		return url.isEmpty() ? null : this.players.get(url);
+	}
+
 	public int activePlayerCount() {
 		return this.players.size();
 	}
@@ -58,11 +65,17 @@ public final class PlaybackManager {
 	public void retry(BlockPos controllerPos) {
 		Minecraft minecraft = Minecraft.getInstance();
 		if (minecraft.level != null && minecraft.level.getBlockEntity(controllerPos) instanceof DisplayBlockEntity display) {
-			ChannelPlayer player = this.players.get(display.getStreamUrl());
+			ChannelPlayer player = this.player(display);
 			if (player != null) {
 				player.retry();
 			}
 		}
+	}
+
+	public void acceptPlaybackUrl(BlockPos pos, int epoch, String streamUrl, String subtitleUrl) {
+		BlockPos key = pos.immutable();
+		this.playbackTickets.put(key, new PlaybackTicket(epoch, streamUrl == null ? "" : streamUrl, subtitleUrl == null ? "" : subtitleUrl));
+		this.pendingTicketRequests.remove(ticketRequestKey(key, epoch));
 	}
 
 	public void clientTick() {
@@ -123,8 +136,9 @@ public final class PlaybackManager {
 			if (!display.shouldPlay()) {
 				continue;
 			}
-			String url = display.getStreamUrl();
+			String url = this.playbackUrl(display);
 			if (url == null || url.isEmpty()) {
+				this.requestPlaybackUrl(display);
 				continue;
 			}
 			Vec3 centre = display.screenCentre();
@@ -206,7 +220,7 @@ public final class PlaybackManager {
 			Binding nearest = bindings.stream().min(Comparator.comparingDouble(Binding::distanceSqr)).orElseThrow();
 			DisplayBlockEntity display = nearest.display();
 			if (display.isOnDemand()) {
-				channelPlayer.setSubtitleUrl(display.getSubtitleFetchUrl());
+				channelPlayer.setSubtitleUrl(this.subtitleUrl(display));
 				boolean paused = display.isPlaybackPaused() || display.isSuspended();
 				channelPlayer.setDesiredPaused(paused);
 				long target = display.currentPlaybackPositionMs();
@@ -266,7 +280,7 @@ public final class PlaybackManager {
 	}
 
 	public @Nullable PictureHandle pictureFor(DisplayBlockEntity display) {
-		String url = display.getStreamUrl();
+		String url = this.playbackUrl(display);
 		ChannelPlayer current = this.players.get(url);
 		if (current != null && current.hasPicture() && current.uploadFrame()) {
 			VideoTexture texture = current.videoTexture();
@@ -283,7 +297,7 @@ public final class PlaybackManager {
 	}
 
 	public @Nullable PlaybackStatus statusFor(DisplayBlockEntity display) {
-		ChannelPlayer player = this.players.get(display.getStreamUrl());
+		ChannelPlayer player = this.player(display);
 		return player == null ? null : player.status();
 	}
 
@@ -314,9 +328,49 @@ public final class PlaybackManager {
 			this.players.clear();
 		}
 		this.playerEpochs.clear();
+		this.playbackTickets.clear();
+		this.pendingTicketRequests.clear();
 		this.endedReports.clear();
 		this.durationReports.clear();
 		this.nearbyControllers.clear();
+	}
+
+	private String playbackUrl(DisplayBlockEntity display) {
+		String direct = display.getStreamUrl();
+		if (direct != null && !direct.isEmpty()) {
+			return direct;
+		}
+		PlaybackTicket ticket = this.playbackTickets.get(display.getBlockPos());
+		if (ticket == null || ticket.epoch() != display.getChannelEpoch()) {
+			return "";
+		}
+		return ticket.streamUrl();
+	}
+
+	private String subtitleUrl(DisplayBlockEntity display) {
+		String direct = display.getSubtitleFetchUrl();
+		if (direct != null && !direct.isEmpty()) {
+			return direct;
+		}
+		PlaybackTicket ticket = this.playbackTickets.get(display.getBlockPos());
+		if (ticket == null || ticket.epoch() != display.getChannelEpoch()) {
+			return "";
+		}
+		return ticket.subtitleUrl();
+	}
+
+	private void requestPlaybackUrl(DisplayBlockEntity display) {
+		String key = ticketRequestKey(display.getBlockPos(), display.getChannelEpoch());
+		if (this.pendingTicketRequests.add(key)) {
+			ClientNetworking.requestPlaybackUrl(display.getBlockPos(), display.getChannelEpoch());
+		}
+	}
+
+	private static String ticketRequestKey(BlockPos pos, int epoch) {
+		return pos.asLong() + ":" + epoch;
+	}
+
+	private record PlaybackTicket(int epoch, String streamUrl, String subtitleUrl) {
 	}
 
 	public record PictureHandle(

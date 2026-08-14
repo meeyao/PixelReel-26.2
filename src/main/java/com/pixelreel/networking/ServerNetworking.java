@@ -38,6 +38,9 @@ public final class ServerNetworking {
 			ModNetworkPayloads.ScreenTune.TYPE, (payload, context) -> handleTune(payload, context.player())
 		);
 		ServerPlayNetworking.registerGlobalReceiver(
+			ModNetworkPayloads.RequestPlaybackUrl.TYPE, (payload, context) -> handleRequestPlaybackUrl(payload, context.player())
+		);
+		ServerPlayNetworking.registerGlobalReceiver(
 			ModNetworkPayloads.RequestChannels.TYPE, (payload, context) -> sendChannelList(context.player(), payload.forceRefresh())
 		);
 		ServerPlayNetworking.registerGlobalReceiver(
@@ -140,6 +143,53 @@ public final class ServerNetworking {
 		notify(player, payload.pos(), outcome);
 	}
 
+	private static void handleRequestPlaybackUrl(ModNetworkPayloads.RequestPlaybackUrl payload, ServerPlayer player) {
+		double maxDistance = Math.max(1.0, ConfigManager.get().maximumPlaybackDistance) * 1.75;
+		DisplayBlockEntity display = resolvePlaybackDisplay(player, payload.pos(), maxDistance);
+		if (display == null || display.getChannelEpoch() != payload.channelEpoch() || !display.shouldPlay()) {
+			return;
+		}
+		if (!canReceivePlaybackUrl(player, display)) {
+			return;
+		}
+		if (player.distanceToSqr(display.screenCentre()) > maxDistance * maxDistance) {
+			return;
+		}
+		ServerPlayNetworking.send(
+			player,
+			new ModNetworkPayloads.PlaybackUrl(
+				display.getBlockPos(),
+				display.getChannelEpoch(),
+				display.getStreamUrl(),
+				display.getSubtitleFetchUrl()
+			)
+		);
+	}
+
+	private static DisplayBlockEntity resolvePlaybackDisplay(ServerPlayer player, BlockPos pos, double maxDistance) {
+		if (!(player.level() instanceof net.minecraft.server.level.ServerLevel level)) {
+			return null;
+		}
+		if (!level.isInWorldBounds(pos) || !level.isLoaded(pos)) {
+			return null;
+		}
+		if (player.distanceToSqr(pos.getX() + 0.5, pos.getY() + 0.5, pos.getZ() + 0.5) > maxDistance * maxDistance) {
+			return null;
+		}
+		return com.pixelreel.blocks.DisplayBlock.controllerAt(level, pos);
+	}
+
+	private static boolean canReceivePlaybackUrl(ServerPlayer player, DisplayBlockEntity display) {
+		if (!display.isOnDemand()) {
+			return CinemaPermissions.canPlayTunarr(player);
+		}
+		return switch (display.getJellyfinKind()) {
+			case MOVIE -> CinemaPermissions.canPlayOnDemandMovies(player);
+			case SERIES, SEASON, EPISODE -> CinemaPermissions.canPlayOnDemandShows(player);
+			default -> CinemaPermissions.canControlPlayback(player);
+		};
+	}
+
 	private static void handleBrowse(ModNetworkPayloads.RequestJellyfinBrowse payload, ServerPlayer player) {
 		if (!CinemaPermissions.canBrowse(player)) {
 			notify(player, BlockPos.ZERO, ScreenControllerLogic.Outcome.NO_PERMISSION);
@@ -217,7 +267,7 @@ public final class ServerNetworking {
 				.whenComplete((items, error) -> runOnServer(player, () -> sendChildren(player, payload, items)));
 			case ITEM -> OnDemandCatalog.fetchItem(provider, payload.parentId())
 				.whenComplete((item, error) -> runOnServer(player, () -> {
-					List<JellyfinItemSummary> items = item.isPresent() ? List.of(item.get()) : List.of();
+					List<JellyfinItemSummary> items = item.isPresent() ? List.of(item.get().forClientPacket()) : List.of();
 					sendChildren(player, payload, items);
 				}));
 		}
@@ -238,7 +288,7 @@ public final class ServerNetworking {
 				payload.kind(),
 				payload.parentId(),
 				OnDemandCatalog.lastStatus(payload.provider()),
-				items == null ? List.of() : items
+				items == null ? List.of() : items.stream().map(JellyfinItemSummary::forClientPacket).toList()
 			)
 		);
 	}
@@ -566,6 +616,10 @@ public final class ServerNetworking {
 	}
 
 	public static void sendChannelList(ServerPlayer player, boolean forceRefresh) {
+		if (!CinemaPermissions.canPlayTunarr(player)) {
+			notify(player, BlockPos.ZERO, ScreenControllerLogic.Outcome.NO_PERMISSION);
+			return;
+		}
 		ChannelService service = ChannelService.INSTANCE;
 		if (!forceRefresh && service.isCacheFresh()) {
 			sendChannelListNow(player);
@@ -578,8 +632,12 @@ public final class ServerNetworking {
 		if (player.hasDisconnected()) {
 			return;
 		}
+		if (!CinemaPermissions.canPlayTunarr(player)) {
+			notify(player, BlockPos.ZERO, ScreenControllerLogic.Outcome.NO_PERMISSION);
+			return;
+		}
 		LiveStatus status = ChannelService.INSTANCE.lastStatus();
-		List<ChannelEntry> entries = ChannelService.INSTANCE.entries();
+		List<ChannelEntry> entries = ChannelService.INSTANCE.entries().stream().map(ChannelEntry::withoutClientSecrets).toList();
 		if (entries.size() > ModNetworkPayloads.MAX_CHANNELS) {
 			entries = entries.subList(0, ModNetworkPayloads.MAX_CHANNELS);
 		}

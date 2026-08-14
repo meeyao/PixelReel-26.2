@@ -4,6 +4,22 @@ Fabric mod for **Minecraft Java Edition 26.2** that lets you place televisions a
 
 Live channels come from a Tunarr (or any M3U + XMLTV) playlist. Movies and shows can come from **Jellyfin**, **Emby**, or **Plex**. Each display keeps its own channel or title, multiple screens can play at once, and audio is positional.
 
+<h2><font color="red">SECURITY NOTICE: THIS FORK IS A SECURITY RESET</font></h2>
+
+This repository is a fork/rework of PixelReel after serious multiplayer credential-leak issues were identified in the original code path. Earlier builds could expose media-server URLs, stream URLs, API keys, Plex tokens, or tokenized artwork URLs to players who should not receive them.
+
+This fork treats that as a release-blocking bug class:
+
+- API keys and Plex tokens stay in server config.
+- World saves do not persist stream URLs, subtitle URLs, tokenized artwork/poster URLs, or Plex part keys.
+- Normal display sync and channel/media browse packets redact secret-bearing URLs.
+- Active playback URLs are temporary and are only sent to permitted nearby clients that need them for local VLC playback.
+- `./gradlew check` runs a `securityAudit` task that fails on known leak-pattern regressions.
+
+Important limitation: local VLC playback means any player allowed to watch a screen must receive a playable URL while that screen is active. Do not give watch/play permissions to untrusted players, and use limited media-server accounts/tokens for multiplayer servers.
+
+AI-assisted development was used on this fork. Security-sensitive changes are expected to be reviewable in code, covered by the audit checklist, and documented in [SECURITY.md](SECURITY.md). Do not trust claims; inspect the code and run the build checks.
+
 ## Requirements
 
 
@@ -41,7 +57,7 @@ gradlew.bat clean build
 The installable JAR is:
 
 ```text
-build\libs\pixelreel-1.0.0.jar
+build\libs\pixelreel-1.1.0.jar
 ```
 
 Use the JAR **without** `-sources`.
@@ -56,7 +72,7 @@ run-client.bat
 
 1. Install Fabric Loader for Minecraft **26.2**.
 2. Put **Fabric API** in your `mods` folder.
-3. Put `pixelreel-1.0.0.jar` in `mods`.
+3. Put `pixelreel-1.1.0.jar` in `mods`.
 4. Install **64-bit VLC** on every client that should see video.
 
 The mod runs on clients and servers (`environment: *`). For multiplayer, **both sides** need the mod. VLC is only required on clients.
@@ -137,7 +153,7 @@ Created on first launch at `config/pixelreel.json`.
 
 ![Plex config](src/main/resources/assets/screenshots/Plex%20config.png)
 
-**API keys and tokens stay server-side. Clients only receive non-secret public config.** 
+**API keys and tokens stay server-side. Clients only receive non-secret public config.** Active playback URLs are treated as ephemeral secrets and are only sent to permitted nearby clients that need them for local VLC playback.
 
 ## Displays
 
@@ -183,7 +199,7 @@ Most screen actions use these commands
 /tv channel <n or name>  tune a live channel
 /tv next | previous      change channel
 /tv guide                now/next programme overview
-/tv status               power, channel, stream, and volume diagnostics
+/tv status               power, channel, and volume diagnostics
 /tv retry                restart playback
 /tv reload               re-download playlist/guide
 /tv stop | resume        pause/resume playback
@@ -197,45 +213,48 @@ Most screen actions use these commands
 
 Display state (type, power, channel/media, facing, volume, playback position) is **server-auth** and synced to every client, including players who join later.
 
-Each client decodes the stream locally with its own VLC. Credentials are never stored in world data
+Each client decodes video locally with its own VLC. API keys, Plex tokens, stream URLs, subtitle URLs, and remote artwork/poster URLs are not stored in world data or normal display sync packets.
+
+Security limitation: a player who has permission to watch a screen and is close enough to it must receive a playable URL while playback is active. Use restricted media-server accounts/tokens for multiplayer servers, and keep play/configuration permissions limited to trusted players.
+
+After a server restart, active playback URLs are intentionally not restored from world data. Displays keep their metadata, but private streams must be selected again.
 
 ## Roadmap
 
-### What we have **Now**
+### Current Scope
 
-What already works in this snapshot build — crossed out as complete:
+| Area | Status | Notes |
+| ---- | ------ | ----- |
+| Fabric mod targeting Minecraft **26.2** | Done | Current supported target for this fork. |
+| Display blocks | Done | Compact TV, Wall TV, Ultrawide Monitor, Cinema Screen, Curved Cinema Screen. |
+| Live TV | Done | Tunarr or direct M3U + XMLTV guide. |
+| On-demand providers | Done | Jellyfin, Emby, and Plex. |
+| Provider config GUIs | Done | Tunarr, Jellyfin, Emby, Plex. |
+| Browse UI | Done | Movies, shows, seasons, episodes. Remote tokenized artwork is redacted in multiplayer packets. |
+| Playback controls | Done | Power, pause/resume, stop, volume, channel/media select, subtitles, seek. |
+| `/tv` command suite | Done | Commands are permission-gated. |
+| Multiplayer sync | Done | Server-authoritative display state with late-join sync. Playback URLs are ephemeral. |
+| VLC playback | Done | Client-side decode with positional audio. |
+| Visual playback handling | Done | Letterboxing, subtitle overlay, HDR tone mapping. |
+| Pixel Glasses | Done | Fullscreen overlay for a nearby playing screen. |
+| Security hardening | In progress | Known leak paths are blocked and checked by `securityAudit`; broader review is still welcome. |
 
-- [x] ~~Fabric mod targeting Minecraft **26.2**~~
-- [x] ~~Five display sizes (Compact TV, Wall TV, Ultrawide, Cinema, Curved Cinema)~~
-- [x] ~~Live TV via Tunarr / M3U + XMLTV guide~~
-- [x] ~~Jellyfin, Emby, and Plex integration~~
-- [x] ~~In-game provider config GUIs (Tunarr, Jellyfin, Emby, Plex)~~
-- [x] ~~Poster-based movie & TV browse UI~~
-- [x] ~~Playback controls (power, pause/resume, volume, channel/media select)~~
-- [x] ~~`/tv` command suite for screen control & diagnostics~~
-- [x] ~~Server-authoritative multiplayer sync (late-join included)~~
-- [x] ~~Client-side VLC decode with positional audio~~
-- [x] ~~Subtitles, letterboxing, and HDR tone mapping~~
-- [x] ~~Pixel Glasses fullscreen overlay~~
-- [x] ~~Craftable displays + creative tab~~
-- [x] Fabric mod targeting Minecraft **1.21.1**
-
-### Upcoming
+### Planned Work
 
 | Feature | Status | Priority | Notes |
 | ------- | ------ | -------- | ----- |
+| **Security review and tests** | Active | Critical | Expand automated tests/audits around packets, world saves, permissions, and logs. |
+| **Server-side media proxy / short-lived playback URLs** | Research | Critical | Needed to avoid giving clients long-lived playable URLs during local VLC playback. |
 | **Admin remote control** | Planned | High | Item or GUI usable from anywhere (not only at the screen). Admins can start, pause, rewind/seek, pick content, and open config for any display. |
 | **Personalized screens** | Planned | High | Per-player private viewing — each player can have their own channel/title on a shared or personal display without forcing everyone onto the same stream. |
 | **Movie scheduler** | Planned | Medium | Queue showtimes (date/time + title or channel). Auto power-on, start playback, and optional lobby announcements for cinema nights. |
-| **YouTube / streaming integration** | Planned | Medium | Play YouTube (and possibly other stream sources) on displays alongside Tunarr and media servers. Exact providers TBD. |
-| **Posters as paintings** | Planned | Medium | Place movie/show posters in the world as painting-style decor (from library artwork), not only inside the browse menus. |
+| **YouTube / streaming integration** | Deferred | Medium | Must not ship until provider URL/security behavior is understood. |
+| **Posters as paintings** | Deferred | Medium | Needs a safe artwork proxy/cache model before remote provider artwork is exposed. |
 | **Fabric on stable versions** | Planned | High | Port from `26.2` to older/stable Fabric target **1.20.1**. |
 | **NeoForge support** | Planned | High | First-class NeoForge build so servers/clients on NeoForge can run pixelReel. |
 | **Forge support** | Planned | Medium | Forge port after (or alongside) NeoForge, depending on version demand. |
 
 DISCORD: https://discord.gg/RSWQuEnMj
-Mincraft Mod 1.21.1: https://github.com/Samarth-programming/PixelReel_1.21.1
+Minecraft Mod 1.21.1 upstream/related repo: https://github.com/Samarth-programming/PixelReel_1.21.1
 
 Ideas and PRs welcome — especially for loaders, version ports, and the admin remote.
-
-

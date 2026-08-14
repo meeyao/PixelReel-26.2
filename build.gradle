@@ -62,6 +62,52 @@ java {
 	targetCompatibility = JavaVersion.VERSION_25
 }
 
+tasks.register("securityAudit") {
+	group = "verification"
+	description = "Checks for known credential leak regressions in packets and world-save serialization."
+
+	doLast {
+		def root = project.layout.projectDirectory
+		def failures = []
+
+		def displayEntity = root.file("src/main/java/com/pixelreel/blockentities/DisplayBlockEntity.java").asFile.text
+		[
+			"output.putString(KEY_STREAM_URL, this.streamUrl)",
+			"output.putString(KEY_MEDIA_IMAGE, this.mediaImageUrl)",
+			"output.putString(KEY_SUB_URL, this.subtitleFetchUrl)",
+			"output.putString(KEY_PLEX_PART_KEY, this.plexPartKey)"
+		].each { needle ->
+			if (displayEntity.contains(needle)) {
+				failures << "DisplayBlockEntity persists a secret-bearing field: ${needle}"
+			}
+		}
+
+		def serverNetworking = root.file("src/main/java/com/pixelreel/networking/ServerNetworking.java").asFile.text
+		if (!serverNetworking.contains("ChannelService.INSTANCE.entries().stream().map(ChannelEntry::withoutClientSecrets).toList()")) {
+			failures << "Channel list packets must redact stream/artwork URLs with ChannelEntry::withoutClientSecrets."
+		}
+		if (!serverNetworking.contains("items.stream().map(JellyfinItemSummary::forClientPacket).toList()")) {
+			failures << "Media children/detail packets must redact provider poster URLs with JellyfinItemSummary::forClientPacket."
+		}
+		if (!serverNetworking.contains("canReceivePlaybackUrl(player, display)")) {
+			failures << "Playback URL delivery must check the player's media permissions."
+		}
+
+		def itemSummary = root.file("src/main/java/com/pixelreel/jellyfin/JellyfinItemSummary.java").asFile.text
+		if (!itemSummary.contains("this.forClientPacket(false)") || !itemSummary.contains('""')) {
+			failures << "JellyfinItemSummary client packet helpers must redact imageUrl."
+		}
+
+		if (!failures.isEmpty()) {
+			throw new GradleException("Security audit failed:\n - " + failures.join("\n - "))
+		}
+	}
+}
+
+tasks.named("check") {
+	dependsOn(tasks.named("securityAudit"))
+}
+
 jar {
 	def projectName = project.name
 	inputs.property "projectName", projectName

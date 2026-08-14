@@ -30,6 +30,7 @@ public final class ModNetworkPayloads {
 		PayloadTypeRegistry<RegistryFriendlyByteBuf> serverbound = PayloadTypeRegistry.serverboundPlay();
 		serverbound.register(ScreenControl.TYPE, ScreenControl.CODEC);
 		serverbound.register(ScreenTune.TYPE, ScreenTune.CODEC);
+		serverbound.register(RequestPlaybackUrl.TYPE, RequestPlaybackUrl.CODEC);
 		serverbound.register(RequestChannels.TYPE, RequestChannels.CODEC);
 		serverbound.register(RequestMediaFeatures.TYPE, RequestMediaFeatures.CODEC);
 		serverbound.register(RequestJellyfinBrowse.TYPE, RequestJellyfinBrowse.CODEC);
@@ -53,6 +54,7 @@ public final class ModNetworkPayloads {
 		clientbound.register(OpenMenu.TYPE, OpenMenu.CODEC);
 		clientbound.register(RetryDisplay.TYPE, RetryDisplay.CODEC);
 		clientbound.register(ShowClientStatus.TYPE, ShowClientStatus.CODEC);
+		clientbound.register(PlaybackUrl.TYPE, PlaybackUrl.CODEC);
 		clientbound.register(MediaFeatures.TYPE, MediaFeatures.CODEC);
 		clientbound.register(JellyfinBrowseResult.TYPE, JellyfinBrowseResult.CODEC);
 		clientbound.register(JellyfinChildrenResult.TYPE, JellyfinChildrenResult.CODEC);
@@ -116,6 +118,42 @@ public final class ModNetworkPayloads {
 			ByteBufCodecs.stringUtf8(128),
 			ScreenTune::channelId,
 			ScreenTune::new
+		);
+
+		@Override
+		public Type<? extends CustomPacketPayload> type() {
+			return TYPE;
+		}
+	}
+
+	public record RequestPlaybackUrl(BlockPos pos, int channelEpoch) implements CustomPacketPayload {
+		public static final Type<RequestPlaybackUrl> TYPE = new Type<>(PixelReel.id("request_playback_url"));
+		public static final StreamCodec<RegistryFriendlyByteBuf, RequestPlaybackUrl> CODEC = StreamCodec.composite(
+			BlockPos.STREAM_CODEC,
+			RequestPlaybackUrl::pos,
+			ByteBufCodecs.VAR_INT,
+			RequestPlaybackUrl::channelEpoch,
+			RequestPlaybackUrl::new
+		);
+
+		@Override
+		public Type<? extends CustomPacketPayload> type() {
+			return TYPE;
+		}
+	}
+
+	public record PlaybackUrl(BlockPos pos, int channelEpoch, String streamUrl, String subtitleUrl) implements CustomPacketPayload {
+		public static final Type<PlaybackUrl> TYPE = new Type<>(PixelReel.id("playback_url"));
+		public static final StreamCodec<RegistryFriendlyByteBuf, PlaybackUrl> CODEC = StreamCodec.composite(
+			BlockPos.STREAM_CODEC,
+			PlaybackUrl::pos,
+			ByteBufCodecs.VAR_INT,
+			PlaybackUrl::channelEpoch,
+			ByteBufCodecs.stringUtf8(2048),
+			PlaybackUrl::streamUrl,
+			ByteBufCodecs.stringUtf8(2048),
+			PlaybackUrl::subtitleUrl,
+			PlaybackUrl::new
 		);
 
 		@Override
