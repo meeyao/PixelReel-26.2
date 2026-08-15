@@ -41,7 +41,7 @@ public record Channel(String id, int number, String name, String logoUrl, String
 	}
 
 	public Channel withoutClientSecrets() {
-		return new Channel(this.id, this.number, this.name, "", "", "");
+		return new Channel(this.id, this.number, this.name, this.logoUrl, this.guideIconUrl, "");
 	}
 
 	public String normalizedName() {

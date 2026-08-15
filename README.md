@@ -14,6 +14,7 @@ This fork treats that as a release-blocking bug class:
 - World saves do not persist stream URLs, subtitle URLs, tokenized artwork/poster URLs, or Plex part keys.
 - Normal display sync and channel/media browse packets redact secret-bearing URLs.
 - Active playback URLs are temporary and are only sent to permitted nearby clients that need them for local VLC playback.
+- On-demand (Jellyfin/Emby/Plex) streams and subtitles are relayed through a **server-side media proxy** (see below), so provider API keys never appear in URLs handed to players' VLC.
 - `./gradlew check` runs a `securityAudit` task that fails on known leak-pattern regressions.
 
 Important limitation: local VLC playback means any player allowed to watch a screen must receive a playable URL while that screen is active. Do not give watch/play permissions to untrusted players, and use limited media-server accounts/tokens for multiplayer servers.
@@ -57,7 +58,7 @@ gradlew.bat clean build
 The installable JAR is:
 
 ```text
-build\libs\pixelreel-1.1.1.jar
+build\libs\pixelreel-1.2.0.jar
 ```
 
 Use the JAR **without** `-sources`.
@@ -72,7 +73,7 @@ run-client.bat
 
 1. Install Fabric Loader for Minecraft **26.2**.
 2. Put **Fabric API** in your `mods` folder.
-3. Put `pixelreel-1.1.1.jar` in `mods`.
+3. Put `pixelreel-1.2.0.jar` in `mods`.
 4. Install **64-bit VLC** on every client that should see video.
 
 The mod runs on clients and servers (`environment: *`). For multiplayer, **both sides** need the mod. VLC is only required on clients.
@@ -155,6 +156,33 @@ Created on first launch at `config/pixelreel.json`.
 
 **API keys and tokens stay server-side. Clients only receive non-secret public config.** Active playback URLs are treated as ephemeral secrets and are only sent to permitted nearby clients that need them for local VLC playback.
 
+## Media Proxy (Secure Mode)
+
+On-demand streams and subtitles from **Jellyfin**, **Emby**, and **Plex** are relayed through a small HTTP proxy that the mod runs on the Minecraft server. Players' VLC fetches from the proxy with an opaque token instead of fetching the provider URL directly, so the provider's API key or token never leaves the server.
+
+```
+Player VLC ──> Minecraft server :28100/stream/<token>   (no api key)
+                  │
+                  ▼
+             Jellyfin/Emby/Plex                        (server holds the key)
+```
+
+How it behaves:
+
+- The proxy is **on by default** on TCP port `28100`. It is only used for on-demand playback; Tunarr/live TV (HLS) streams are still fetched directly for now.
+- Tokens are opaque, **stable per screen + title**, so VLC seeks and reconnects reuse the same URL. Tokens are revoked whenever playback changes (new title, channel, subtitle) and expire after **24 hours**.
+- If the proxy cannot bind (port in use, firewall, etc.) the mod **silently falls back to direct URLs**, so playback still works — just without the key-hiding benefit.
+
+| Key          | Default | Meaning                                                                                       |
+| ------------ | ------- | --------------------------------------------------------------------------------------------- |
+| `proxyPort`  | `28100` | TCP port the proxy listens on. Set to `0` for the default.                                    |
+| `proxyHost`  | `""`    | Override the host players use to reach the proxy. Empty = use the address the client connected to. |
+
+Deployment notes:
+
+- **Publish TCP `28100`** on the Minecraft server's host/container (e.g. `-p 28100:28100`), and open it in any firewall, so players can reach it.
+- If players connect to the server through a NAT gateway or a Cloudflare-routed hostname, the proxy port does not exist at that address. Set `proxyHost` in the config to the server's LAN/public IP so the client builds `http://<that-ip>:28100/...`.
+
 ## Displays
 
 
@@ -213,9 +241,9 @@ Most screen actions use these commands
 
 Display state (type, power, channel/media, facing, volume, playback position) is **server-auth** and synced to every client, including players who join later.
 
-Each client decodes video locally with its own VLC. API keys, Plex tokens, stream URLs, subtitle URLs, and remote artwork/poster URLs are not stored in world data or normal display sync packets.
+Each client decodes video locally with its own VLC. API keys, Plex tokens, stream URLs, subtitle URLs, and remote artwork/poster URLs are not stored in world data or normal display sync packets. On-demand streams are relayed through the server-side media proxy (see above), so the URLs a player's VLC sees never contain provider credentials.
 
-Security limitation: a player who has permission to watch a screen and is close enough to it must receive a playable URL while playback is active. Use restricted media-server accounts/tokens for multiplayer servers, and keep play/configuration permissions limited to trusted players.
+Security limitation: a player who has permission to watch a screen and is close enough to it must receive a playable URL while playback is active. The proxy keeps the provider key off that URL, but a player can still share the proxy token while it is active. Use restricted media-server accounts/tokens for multiplayer servers, and keep play/configuration permissions limited to trusted players.
 
 After a server restart, active playback URLs are intentionally not restored from world data. Displays keep their metadata, but private streams must be selected again.
 
@@ -234,6 +262,7 @@ After a server restart, active playback URLs are intentionally not restored from
 | Playback controls | Done | Power, pause/resume, stop, volume, channel/media select, subtitles, seek. |
 | `/tv` command suite | Done | Commands are permission-gated. |
 | Multiplayer sync | Done | Server-authoritative display state with late-join sync. Playback URLs are ephemeral. |
+| Media proxy (secure mode) | Done | On-demand streams/subtitles relayed server-side on TCP `28100`; opaque revocable tokens, no API keys to players. Tunarr/HLS direct for now. |
 | VLC playback | Done | Client-side decode with positional audio. |
 | Visual playback handling | Done | Letterboxing, subtitle overlay, HDR tone mapping. |
 | Pixel Glasses | Done | Fullscreen overlay for a nearby playing screen. |
@@ -244,7 +273,7 @@ After a server restart, active playback URLs are intentionally not restored from
 | Feature | Status | Priority | Notes |
 | ------- | ------ | -------- | ----- |
 | **Security review and tests** | Active | Critical | Expand automated tests/audits around packets, world saves, permissions, and logs. |
-| **Server-side media proxy / short-lived playback URLs** | Research | Critical | Needed to avoid giving clients long-lived playable URLs during local VLC playback. |
+| **Proxy for live TV (Tunarr/HLS)** | Planned | Critical | Rewrite HLS manifests so live channels also play through the proxy instead of direct. |
 | **Admin remote control** | Planned | High | Item or GUI usable from anywhere (not only at the screen). Admins can start, pause, rewind/seek, pick content, and open config for any display. |
 | **Personalized screens** | Planned | High | Per-player private viewing — each player can have their own channel/title on a shared or personal display without forcing everyone onto the same stream. |
 | **Movie scheduler** | Planned | Medium | Queue showtimes (date/time + title or channel). Auto power-on, start playback, and optional lobby announcements for cinema nights. |

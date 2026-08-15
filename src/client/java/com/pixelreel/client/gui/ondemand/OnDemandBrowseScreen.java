@@ -142,7 +142,7 @@ public class OnDemandBrowseScreen extends Screen {
 			JellyfinItemSummary item = items.get(i);
 			int cardX = this.gridLeft + (i % this.columns) * (OnDemandPosterCard.CARD_WIDTH + CARD_GAP);
 			int cardY = HEADER_HEIGHT + (i / this.columns) * (OnDemandPosterCard.CARD_HEIGHT + CARD_GAP) - (int)this.scroll;
-			OnDemandPosterCard card = new OnDemandPosterCard(cardX, cardY, item, this::openItem);
+			OnDemandPosterCard card = new OnDemandPosterCard(cardX, cardY, this.provider, item, this::openItem);
 			this.cards.add(card);
 			this.addRenderableWidget(card);
 		}

@@ -71,6 +71,9 @@ public final class PixelReelConfig {
 	public int maximumVideoResolution = 1920;
 	public int maximumPlaybackDistance = 96;
 
+	public String proxyHost = "";
+	public int proxyPort = 28100;
+
 	public Map<String, String> posterOverrides = new HashMap<>();
 
 	public PixelReelConfig validated() {
@@ -133,6 +136,8 @@ public final class PixelReelConfig {
 		copy.channelCacheSeconds = clamp(this.channelCacheSeconds, 5, 86400, 300);
 		copy.maximumVideoResolution = clamp(this.maximumVideoResolution, 128, 3840, 1920);
 		copy.maximumPlaybackDistance = clamp(this.maximumPlaybackDistance, 8, 256, 96);
+		copy.proxyHost = this.proxyHost == null ? "" : this.proxyHost.trim();
+		copy.proxyPort = this.proxyPort <= 0 ? 28100 : clamp(this.proxyPort, 1024, 65535, 28100);
 		copy.posterOverrides = this.posterOverrides == null ? new HashMap<>() : new HashMap<>(this.posterOverrides);
 		return copy;
 	}
