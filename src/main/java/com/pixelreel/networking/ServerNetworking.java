@@ -204,9 +204,14 @@ public final class ServerNetworking {
 				.map(JellyfinItemSummary::imageUrl)
 				.orElse("");
 		}
+		PixelReelConfig config = ConfigManager.get();
+		String deliverable = url;
+		if (MediaProxy.INSTANCE.isActive() && !url.isBlank()) {
+			deliverable = proxyPath("/poster", MediaProxy.INSTANCE.issuePoster(url));
+		}
 		ServerPlayNetworking.send(
 			player,
-			new ModNetworkPayloads.PosterUrl(payload.provider(), payload.itemId(), url)
+			new ModNetworkPayloads.PosterUrl(payload.provider(), payload.itemId(), deliverable, config.proxyHost, config.proxyPort)
 		);
 	}
 

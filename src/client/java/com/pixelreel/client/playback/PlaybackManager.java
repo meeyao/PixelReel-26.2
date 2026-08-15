@@ -101,7 +101,7 @@ public final class PlaybackManager {
 		return "http://" + host + ":" + proxyPort + url;
 	}
 
-	private static String serverProxyHost() {
+	public static String serverProxyHost() {
 		Minecraft minecraft = Minecraft.getInstance();
 		if (minecraft == null || minecraft.getConnection() == null) {
 			return null;

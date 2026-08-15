@@ -1,5 +1,6 @@
 package com.pixelreel.client;
 
+import com.pixelreel.client.playback.PlaybackManager;
 import com.pixelreel.networking.ModNetworkPayloads;
 import com.pixelreel.ondemand.OnDemandProvider;
 import java.util.HashMap;
@@ -38,7 +39,19 @@ public final class ClientPosterUrlCache {
 
 	public void accept(ModNetworkPayloads.PosterUrl payload) {
 		String key = key(payload.provider(), payload.itemId());
-		this.urls.put(key, payload.url() == null ? "" : payload.url());
+		String url = payload.url() == null ? "" : payload.url();
+		if (url.startsWith("/")) {
+			String host = payload.proxyHost();
+			if (host == null || host.isBlank()) {
+				host = PlaybackManager.serverProxyHost();
+			}
+			if (host == null || host.isBlank() || payload.proxyPort() <= 0) {
+				url = "";
+			} else {
+				url = "http://" + host + ":" + payload.proxyPort() + url;
+			}
+		}
+		this.urls.put(key, url);
 		this.pending.remove(key);
 	}
 

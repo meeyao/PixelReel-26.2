@@ -191,7 +191,7 @@ public final class ModNetworkPayloads {
 		}
 	}
 
-	public record PosterUrl(OnDemandProvider provider, String itemId, String url) implements CustomPacketPayload {
+	public record PosterUrl(OnDemandProvider provider, String itemId, String url, String proxyHost, int proxyPort) implements CustomPacketPayload {
 		public static final Type<PosterUrl> TYPE = new Type<>(PixelReel.id("poster_url"));
 		public static final StreamCodec<RegistryFriendlyByteBuf, PosterUrl> CODEC = StreamCodec.composite(
 			ByteBufCodecs.VAR_INT.map(OnDemandProvider::byIndex, OnDemandProvider::ordinal),
@@ -200,6 +200,10 @@ public final class ModNetworkPayloads {
 			PosterUrl::itemId,
 			ByteBufCodecs.stringUtf8(2048),
 			PosterUrl::url,
+			ByteBufCodecs.stringUtf8(253),
+			PosterUrl::proxyHost,
+			ByteBufCodecs.VAR_INT,
+			PosterUrl::proxyPort,
 			PosterUrl::new
 		);
 

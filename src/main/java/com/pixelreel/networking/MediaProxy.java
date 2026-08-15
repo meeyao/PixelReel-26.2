@@ -31,6 +31,7 @@ public final class MediaProxy {
 	public static final MediaProxy INSTANCE = new MediaProxy();
 
 	private static final Duration TICKET_TTL = Duration.ofHours(24);
+	private static final Duration POSTER_TTL = Duration.ofDays(7);
 	private static final int MAX_TICKETS = 4096;
 	private static final Duration UPSTREAM_HEADER_TIMEOUT = Duration.ofSeconds(10);
 	private static final String[] RELAY_HEADERS = {
@@ -68,6 +69,7 @@ public final class MediaProxy {
 			http.setExecutor(this.executor);
 			http.createContext("/stream/", this::handle);
 			http.createContext("/subtitle/", this::handle);
+			http.createContext("/poster/", this::handle);
 			http.start();
 			this.server = http;
 			PixelReel.LOGGER.info("pixelReel media proxy listening on port {}", port);
@@ -99,6 +101,15 @@ public final class MediaProxy {
 
 	/** Returns an opaque token path suffix for the given stream URL, reusing the token while the URL is unchanged. */
 	public synchronized String issue(String displayKey, String url) {
+		return this.issue(displayKey, url, TICKET_TTL.toMillis());
+	}
+
+	/** Poster thumbnails live longer than a playback session, so they get a longer-lived token. */
+	public synchronized String issuePoster(String url) {
+		return this.issue("poster", url, POSTER_TTL.toMillis());
+	}
+
+	private synchronized String issue(String displayKey, String url, long ttlMillis) {
 		if (url == null || url.isBlank()) {
 			return "";
 		}
@@ -113,7 +124,7 @@ public final class MediaProxy {
 		this.sweep();
 		String token = UUID.randomUUID().toString().replace("-", "");
 		this.tokensByUrl.put(urlKey, token);
-		this.tickets.put(token, new Ticket(token, displayKey, url, System.currentTimeMillis() + TICKET_TTL.toMillis()));
+		this.tickets.put(token, new Ticket(token, displayKey, url, System.currentTimeMillis() + ttlMillis));
 		return token;
 	}
 

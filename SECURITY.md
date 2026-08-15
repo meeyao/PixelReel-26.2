@@ -10,8 +10,8 @@ PixelReel connects Minecraft clients to private media services. Treat Jellyfin A
 - Media browse/detail packets redact provider poster URLs because those URLs can contain API keys or Plex tokens.
 - Display block entity saves and normal block entity sync redact stream URLs, subtitle URLs, and media poster URLs.
 - Clients request a playback URL only when they are near a playing display. The server validates the display position, epoch, and playback distance before sending the URL.
-- On-demand (Jellyfin/Emby/Plex) streams and subtitles are relayed through a server-side media proxy (TCP `28100` by default). The provider API key/token is used only on the server; players receive opaque `/stream/<token>` and `/subtitle/<token>` proxy paths that contain no credentials.
-- Proxy tokens are revoked when a display changes title/channel/subtitle and expire after 24 hours, so a re-issued token for a changed screen no longer works. Tokens are stable per screen + URL so VLC seeks and reconnects keep working.
+- On-demand (Jellyfin/Emby/Plex) streams, subtitles, **and poster thumbnails** are relayed through a server-side media proxy (TCP `28100` by default). The provider API key/token is used only on the server; players receive opaque `/stream/<token>`, `/subtitle/<token>`, and `/poster/<token>` proxy paths that contain no credentials.
+- Proxy tokens are revoked when a display changes title/channel/subtitle and expire after 24 hours (poster tokens last 7 days), so a re-issued token for a changed screen no longer works. Tokens are stable per screen + URL so VLC seeks and reconnects keep working.
 - `/tv` commands use the same permission gates as the packet handlers for browsing, tuning, playback control, refresh, and configuration.
 - Active playback URLs are intentionally ephemeral. They are not restored from world data after a server restart.
 

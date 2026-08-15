@@ -169,10 +169,10 @@ The value works in stream/subtitle/poster URLs too, since Jellyfin accepts acces
 
 ## Media Proxy (Secure Mode)
 
-On-demand streams and subtitles from **Jellyfin**, **Emby**, and **Plex** are relayed through a small HTTP proxy that the mod runs on the **Minecraft server** — the same machine/container that runs your Fabric server. Players' VLC fetches from the proxy with an opaque token instead of fetching the provider URL directly, so the provider's API key or token never leaves the Minecraft server.
+On-demand streams, subtitles, **and poster thumbnails** from **Jellyfin**, **Emby**, and **Plex** are relayed through a small HTTP proxy that the mod runs on the **Minecraft server** — the same machine/container that runs your Fabric server. Players' VLC (and the poster fetcher) get opaque, revocable tokens instead of provider URLs, so the provider's API key or token never leaves the Minecraft server.
 
 ```
-Player VLC ──> Minecraft server (TCP 28100) /stream/<token>   (no api key)
+Player ──> Minecraft server (TCP 28100) /stream/<token>, /subtitle/<token>, /poster/<token>   (no api key)
                   │
                   ▼
              Jellyfin/Emby/Plex                        (Minecraft server holds the key)
@@ -183,7 +183,7 @@ Player VLC ──> Minecraft server (TCP 28100) /stream/<token>   (no api key)
 How it behaves:
 
 - The proxy is **on by default** on TCP port `28100`. It is only used for on-demand playback; Tunarr/live TV (HLS) streams are still fetched directly for now.
-- Tokens are opaque, **stable per screen + title**, so VLC seeks and reconnects reuse the same URL. Tokens are revoked whenever playback changes (new title, channel, subtitle) and expire after **24 hours**.
+- Tokens are opaque, **stable per screen + title**, so VLC seeks and reconnects reuse the same URL. Tokens are revoked whenever playback changes (new title, channel, subtitle) and expire after **24 hours** (poster tokens last **7 days**).
 - If the proxy cannot bind (port in use, firewall, etc.) the mod **silently falls back to direct URLs**, so playback still works — just without the key-hiding benefit.
 
 | Key          | Default | Meaning                                                                                       |
