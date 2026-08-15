@@ -60,7 +60,18 @@ public final class ClientNetworking {
 		);
 
 		ClientPlayNetworking.registerGlobalReceiver(ModNetworkPayloads.PlaybackUrl.TYPE, (payload, context) ->
-			PlaybackManager.INSTANCE.acceptPlaybackUrl(payload.pos(), payload.channelEpoch(), payload.streamUrl(), payload.subtitleUrl())
+			PlaybackManager.INSTANCE.acceptPlaybackUrl(
+				payload.pos(),
+				payload.channelEpoch(),
+				payload.proxyPort(),
+				payload.proxyHost(),
+				payload.streamUrl(),
+				payload.subtitleUrl()
+			)
+		);
+
+		ClientPlayNetworking.registerGlobalReceiver(ModNetworkPayloads.PosterUrl.TYPE, (payload, context) ->
+			ClientPosterUrlCache.INSTANCE.accept(payload)
 		);
 
 		ClientPlayNetworking.registerGlobalReceiver(ModNetworkPayloads.MediaFeatures.TYPE, (payload, context) -> {
@@ -134,6 +145,12 @@ public final class ClientNetworking {
 	public static void requestPlaybackUrl(BlockPos pos, int channelEpoch) {
 		if (ClientPlayNetworking.canSend(ModNetworkPayloads.RequestPlaybackUrl.TYPE)) {
 			ClientPlayNetworking.send(new ModNetworkPayloads.RequestPlaybackUrl(pos, channelEpoch));
+		}
+	}
+
+	public static void requestPoster(OnDemandProvider provider, String itemId) {
+		if (ClientPlayNetworking.canSend(ModNetworkPayloads.RequestPoster.TYPE)) {
+			ClientPlayNetworking.send(new ModNetworkPayloads.RequestPoster(provider, itemId));
 		}
 	}
 

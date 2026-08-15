@@ -1,8 +1,10 @@
 package com.pixelreel.client.gui.ondemand;
 
+import com.pixelreel.client.ClientPosterUrlCache;
 import com.pixelreel.client.gui.shared.SharedPoster;
 import com.pixelreel.client.texture.PosterCache;
 import com.pixelreel.jellyfin.JellyfinItemSummary;
+import com.pixelreel.ondemand.OnDemandProvider;
 import java.util.List;
 import java.util.function.Consumer;
 import net.minecraft.ChatFormatting;
@@ -28,11 +30,13 @@ public class OnDemandPosterCard extends AbstractWidget {
 	private static final int COLOR_PROGRESS = 0xFF46C878;
 
 	private JellyfinItemSummary item;
+	private final OnDemandProvider provider;
 	private final Consumer<JellyfinItemSummary> onSelect;
 
-	public OnDemandPosterCard(int x, int y, JellyfinItemSummary item, Consumer<JellyfinItemSummary> onSelect) {
+	public OnDemandPosterCard(int x, int y, OnDemandProvider provider, JellyfinItemSummary item, Consumer<JellyfinItemSummary> onSelect) {
 		super(x, y, CARD_WIDTH, CARD_HEIGHT, Component.literal(item.title()));
 		this.item = item;
+		this.provider = provider;
 		this.onSelect = onSelect;
 	}
 
@@ -60,7 +64,8 @@ public class OnDemandPosterCard extends AbstractWidget {
 		graphics.fill(thumbX, thumbY, thumbX + thumbWidth, thumbY + thumbHeight, COLOR_POSTER_BACK);
 
 		var font = Minecraft.getInstance().font;
-		PosterCache.Poster thumb = PosterCache.INSTANCE.getByUrl(this.item.id(), this.item.imageUrl());
+		String posterUrl = ClientPosterUrlCache.INSTANCE.url(this.provider, this.item.id());
+		PosterCache.Poster thumb = PosterCache.INSTANCE.getByUrl(this.item.id(), posterUrl);
 		if (thumb.state() == PosterCache.State.READY && thumb.texture() != null) {
 			SharedPoster.blitCover(graphics, thumb, thumbX, thumbY, thumbWidth, thumbHeight);
 		} else if (thumb.state() == PosterCache.State.LOADING) {

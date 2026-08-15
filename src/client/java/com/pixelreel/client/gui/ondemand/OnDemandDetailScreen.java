@@ -3,6 +3,7 @@ package com.pixelreel.client.gui.ondemand;
 import com.pixelreel.blockentities.DisplayBlockEntity;
 import com.pixelreel.client.ClientMediaCache;
 import com.pixelreel.client.ClientNetworking;
+import com.pixelreel.client.ClientPosterUrlCache;
 import com.pixelreel.client.gui.GuiColors;
 import com.pixelreel.client.gui.shared.TimeFormat;
 import com.pixelreel.client.texture.PosterCache;
@@ -103,7 +104,8 @@ public class OnDemandDetailScreen extends Screen {
 		int posterW = 96;
 		int posterH = 144;
 		graphics.fill(posterX, posterY, posterX + posterW, posterY + posterH, 0xFF06080A);
-		PosterCache.Poster poster = PosterCache.INSTANCE.getByUrl(this.item.id(), this.item.imageUrl());
+		String posterUrl = ClientPosterUrlCache.INSTANCE.url(this.provider, this.item.id());
+		PosterCache.Poster poster = PosterCache.INSTANCE.getByUrl(this.item.id(), posterUrl);
 		if (poster.state() == PosterCache.State.READY && poster.texture() != null) {
 			Identifier texture = poster.texture();
 			graphics.blit(

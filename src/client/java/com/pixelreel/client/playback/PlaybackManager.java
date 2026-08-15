@@ -8,6 +8,8 @@ import com.pixelreel.config.ConfigManager;
 import com.pixelreel.config.PixelReelConfig;
 import com.pixelreel.items.PixelGlassesItem;
 import com.pixelreel.networking.ScreenAction;
+import java.net.InetSocketAddress;
+import java.net.SocketAddress;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -72,10 +74,49 @@ public final class PlaybackManager {
 		}
 	}
 
-	public void acceptPlaybackUrl(BlockPos pos, int epoch, String streamUrl, String subtitleUrl) {
+	public void acceptPlaybackUrl(BlockPos pos, int epoch, int proxyPort, String proxyHost, String streamUrl, String subtitleUrl) {
 		BlockPos key = pos.immutable();
-		this.playbackTickets.put(key, new PlaybackTicket(epoch, streamUrl == null ? "" : streamUrl, subtitleUrl == null ? "" : subtitleUrl));
+		this.playbackTickets.put(
+			key,
+			new PlaybackTicket(
+				epoch,
+				this.proxyUrl(proxyPort, proxyHost, streamUrl),
+				this.proxyUrl(proxyPort, proxyHost, subtitleUrl)
+			)
+		);
 		this.pendingTicketRequests.remove(ticketRequestKey(key, epoch));
+	}
+
+	private String proxyUrl(int proxyPort, String proxyHost, String url) {
+		if (url == null || url.isBlank()) {
+			return "";
+		}
+		if (!url.startsWith("/")) {
+			return url;
+		}
+		String host = proxyHost == null || proxyHost.isBlank() ? serverProxyHost() : proxyHost;
+		if (host == null || proxyPort <= 0) {
+			return "";
+		}
+		return "http://" + host + ":" + proxyPort + url;
+	}
+
+	private static String serverProxyHost() {
+		Minecraft minecraft = Minecraft.getInstance();
+		if (minecraft == null || minecraft.getConnection() == null) {
+			return null;
+		}
+		try {
+			SocketAddress address = minecraft.getConnection().getConnection().getRemoteAddress();
+			if (address instanceof InetSocketAddress inet) {
+				String host = inet.getHostString();
+				if (host != null && !host.isBlank()) {
+					return host.contains(":") ? "[" + host + "]" : host;
+				}
+			}
+		} catch (RuntimeException ignored) {
+		}
+		return null;
 	}
 
 	public void clientTick() {

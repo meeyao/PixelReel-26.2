@@ -27,6 +27,9 @@ import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
 
 public final class ServerNetworking {
+	private static final ServerRateLimit PLAYBACK_URL_RATE = new ServerRateLimit(30_000, 30);
+	private static final ServerRateLimit POSTER_RATE = new ServerRateLimit(10_000, 120);
+
 	private ServerNetworking() {
 	}
 
@@ -39,6 +42,9 @@ public final class ServerNetworking {
 		);
 		ServerPlayNetworking.registerGlobalReceiver(
 			ModNetworkPayloads.RequestPlaybackUrl.TYPE, (payload, context) -> handleRequestPlaybackUrl(payload, context.player())
+		);
+		ServerPlayNetworking.registerGlobalReceiver(
+			ModNetworkPayloads.RequestPoster.TYPE, (payload, context) -> handleRequestPoster(payload, context.player())
 		);
 		ServerPlayNetworking.registerGlobalReceiver(
 			ModNetworkPayloads.RequestChannels.TYPE, (payload, context) -> sendChannelList(context.player(), payload.forceRefresh())
@@ -144,6 +150,9 @@ public final class ServerNetworking {
 	}
 
 	private static void handleRequestPlaybackUrl(ModNetworkPayloads.RequestPlaybackUrl payload, ServerPlayer player) {
+		if (!PLAYBACK_URL_RATE.allow(player.getUUID())) {
+			return;
+		}
 		double maxDistance = Math.max(1.0, ConfigManager.get().maximumPlaybackDistance) * 1.75;
 		DisplayBlockEntity display = resolvePlaybackDisplay(player, payload.pos(), maxDistance);
 		if (display == null || display.getChannelEpoch() != payload.channelEpoch() || !display.shouldPlay()) {
@@ -155,14 +164,49 @@ public final class ServerNetworking {
 		if (player.distanceToSqr(display.screenCentre()) > maxDistance * maxDistance) {
 			return;
 		}
+		PixelReelConfig config = ConfigManager.get();
+		int proxyPort = config.proxyPort;
+		String proxyHost = config.proxyHost;
+		String streamUrl;
+		String subtitleUrl;
+		if (display.isOnDemand() && MediaProxy.INSTANCE.isActive()) {
+			String displayKey = MediaProxy.displayKey(player.level().dimension().identifier().toString(), display.getBlockPos());
+			streamUrl = proxyPath("/stream", MediaProxy.INSTANCE.issue(displayKey, display.getStreamUrl()));
+			subtitleUrl = proxyPath("/subtitle", MediaProxy.INSTANCE.issue(displayKey, display.getSubtitleFetchUrl()));
+		} else {
+			streamUrl = display.getStreamUrl();
+			subtitleUrl = display.getSubtitleFetchUrl();
+		}
 		ServerPlayNetworking.send(
 			player,
 			new ModNetworkPayloads.PlaybackUrl(
 				display.getBlockPos(),
 				display.getChannelEpoch(),
-				display.getStreamUrl(),
-				display.getSubtitleFetchUrl()
+				proxyPort,
+				proxyHost,
+				streamUrl,
+				subtitleUrl
 			)
+		);
+	}
+
+	private static String proxyPath(String prefix, String token) {
+		return token == null || token.isBlank() ? "" : prefix + "/" + token;
+	}
+
+	private static void handleRequestPoster(ModNetworkPayloads.RequestPoster payload, ServerPlayer player) {
+		if (!CinemaPermissions.canBrowse(player)) {
+			return;
+		}
+		String url = "";
+		if (POSTER_RATE.allow(player.getUUID())) {
+			url = OnDemandCatalog.find(payload.provider(), payload.itemId())
+				.map(JellyfinItemSummary::imageUrl)
+				.orElse("");
+		}
+		ServerPlayNetworking.send(
+			player,
+			new ModNetworkPayloads.PosterUrl(payload.provider(), payload.itemId(), url)
 		);
 	}
 

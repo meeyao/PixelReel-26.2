@@ -9,6 +9,7 @@ import com.pixelreel.jellyfin.JellyfinItemKind;
 import com.pixelreel.jellyfin.JellyfinItemSummary;
 import com.pixelreel.media.MediaSource;
 import com.pixelreel.media.SubtitleTrack;
+import com.pixelreel.networking.MediaProxy;
 import com.pixelreel.registry.ModBlockEntities;
 import java.util.List;
 import net.minecraft.core.BlockPos;
@@ -382,6 +383,7 @@ public class DisplayBlockEntity extends BlockEntity {
 		this.clearJellyfinFields();
 		this.hdrContent = false;
 		this.channelEpoch++;
+		this.revokePlaybackTickets();
 		this.markDirtyAndSync();
 	}
 
@@ -486,6 +488,7 @@ public class DisplayBlockEntity extends BlockEntity {
 		this.clearAutoplay();
 		this.channelEpoch++;
 		this.progressReportTicks = 0;
+		this.revokePlaybackTickets();
 		this.markDirtyAndSync();
 	}
 
@@ -509,7 +512,15 @@ public class DisplayBlockEntity extends BlockEntity {
 		if (!this.subtitleFetchUrl.equals(previousSubtitleUrl)) {
 			this.channelEpoch++;
 		}
+		this.revokePlaybackTickets();
 		this.markDirtyAndSync();
+	}
+
+	private void revokePlaybackTickets() {
+		if (this.level == null || this.level.isClientSide()) {
+			return;
+		}
+		MediaProxy.INSTANCE.revoke(MediaProxy.displayKey(this.level.dimension().identifier().toString(), this.worldPosition));
 	}
 
 	public int nextSubtitleIndex() {

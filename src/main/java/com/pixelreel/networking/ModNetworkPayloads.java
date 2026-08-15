@@ -31,6 +31,7 @@ public final class ModNetworkPayloads {
 		serverbound.register(ScreenControl.TYPE, ScreenControl.CODEC);
 		serverbound.register(ScreenTune.TYPE, ScreenTune.CODEC);
 		serverbound.register(RequestPlaybackUrl.TYPE, RequestPlaybackUrl.CODEC);
+		serverbound.register(RequestPoster.TYPE, RequestPoster.CODEC);
 		serverbound.register(RequestChannels.TYPE, RequestChannels.CODEC);
 		serverbound.register(RequestMediaFeatures.TYPE, RequestMediaFeatures.CODEC);
 		serverbound.register(RequestJellyfinBrowse.TYPE, RequestJellyfinBrowse.CODEC);
@@ -55,6 +56,7 @@ public final class ModNetworkPayloads {
 		clientbound.register(RetryDisplay.TYPE, RetryDisplay.CODEC);
 		clientbound.register(ShowClientStatus.TYPE, ShowClientStatus.CODEC);
 		clientbound.register(PlaybackUrl.TYPE, PlaybackUrl.CODEC);
+		clientbound.register(PosterUrl.TYPE, PosterUrl.CODEC);
 		clientbound.register(MediaFeatures.TYPE, MediaFeatures.CODEC);
 		clientbound.register(JellyfinBrowseResult.TYPE, JellyfinBrowseResult.CODEC);
 		clientbound.register(JellyfinChildrenResult.TYPE, JellyfinChildrenResult.CODEC);
@@ -142,18 +144,63 @@ public final class ModNetworkPayloads {
 		}
 	}
 
-	public record PlaybackUrl(BlockPos pos, int channelEpoch, String streamUrl, String subtitleUrl) implements CustomPacketPayload {
+	public record PlaybackUrl(
+		BlockPos pos,
+		int channelEpoch,
+		int proxyPort,
+		String proxyHost,
+		String streamUrl,
+		String subtitleUrl
+	) implements CustomPacketPayload {
 		public static final Type<PlaybackUrl> TYPE = new Type<>(PixelReel.id("playback_url"));
 		public static final StreamCodec<RegistryFriendlyByteBuf, PlaybackUrl> CODEC = StreamCodec.composite(
 			BlockPos.STREAM_CODEC,
 			PlaybackUrl::pos,
 			ByteBufCodecs.VAR_INT,
 			PlaybackUrl::channelEpoch,
+			ByteBufCodecs.VAR_INT,
+			PlaybackUrl::proxyPort,
+			ByteBufCodecs.stringUtf8(256),
+			PlaybackUrl::proxyHost,
 			ByteBufCodecs.stringUtf8(2048),
 			PlaybackUrl::streamUrl,
 			ByteBufCodecs.stringUtf8(2048),
 			PlaybackUrl::subtitleUrl,
 			PlaybackUrl::new
+		);
+
+		@Override
+		public Type<? extends CustomPacketPayload> type() {
+			return TYPE;
+		}
+	}
+
+	public record RequestPoster(OnDemandProvider provider, String itemId) implements CustomPacketPayload {
+		public static final Type<RequestPoster> TYPE = new Type<>(PixelReel.id("request_poster"));
+		public static final StreamCodec<RegistryFriendlyByteBuf, RequestPoster> CODEC = StreamCodec.composite(
+			ByteBufCodecs.VAR_INT.map(OnDemandProvider::byIndex, OnDemandProvider::ordinal),
+			RequestPoster::provider,
+			ByteBufCodecs.stringUtf8(128),
+			RequestPoster::itemId,
+			RequestPoster::new
+		);
+
+		@Override
+		public Type<? extends CustomPacketPayload> type() {
+			return TYPE;
+		}
+	}
+
+	public record PosterUrl(OnDemandProvider provider, String itemId, String url) implements CustomPacketPayload {
+		public static final Type<PosterUrl> TYPE = new Type<>(PixelReel.id("poster_url"));
+		public static final StreamCodec<RegistryFriendlyByteBuf, PosterUrl> CODEC = StreamCodec.composite(
+			ByteBufCodecs.VAR_INT.map(OnDemandProvider::byIndex, OnDemandProvider::ordinal),
+			PosterUrl::provider,
+			ByteBufCodecs.stringUtf8(128),
+			PosterUrl::itemId,
+			ByteBufCodecs.stringUtf8(2048),
+			PosterUrl::url,
+			PosterUrl::new
 		);
 
 		@Override

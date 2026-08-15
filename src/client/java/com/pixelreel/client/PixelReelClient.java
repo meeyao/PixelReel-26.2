@@ -53,6 +53,7 @@ public class PixelReelClient implements ClientModInitializer {
 			PlaybackManager.INSTANCE.releaseAll();
 			ClientChannelCache.INSTANCE.clear();
 			ClientMediaCache.INSTANCE.clear();
+			ClientPosterUrlCache.INSTANCE.clear();
 		});
 
 		ClientLifecycleEvents.CLIENT_STOPPING.register(minecraft -> {

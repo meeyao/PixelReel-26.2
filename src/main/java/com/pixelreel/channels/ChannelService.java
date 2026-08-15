@@ -31,7 +31,7 @@ import org.jspecify.annotations.Nullable;
 public final class ChannelService {
 	public static final ChannelService INSTANCE = new ChannelService();
 
-	private final ExecutorService executor = Executors.newCachedThreadPool(runnable -> {
+	private final ExecutorService executor = Executors.newFixedThreadPool(16, runnable -> {
 		Thread thread = new Thread(runnable, "pixelreel-http");
 		thread.setDaemon(true);
 		return thread;
