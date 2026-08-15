@@ -37,6 +37,13 @@ dependencies {
 	include "uk.co.caprica:vlcj-natives:${project.vlcj_natives_version}"
 	include "net.java.dev.jna:jna:${project.jna_version}"
 	include "net.java.dev.jna:jna-platform:${project.jna_version}"
+
+	testImplementation "org.junit.jupiter:junit-jupiter:5.11.4"
+	testRuntimeOnly "org.junit.platform:junit-platform-launcher"
+}
+
+test {
+	useJUnitPlatform()
 }
 
 processResources {

@@ -32,7 +32,7 @@ public final class MediaProxy {
 
 	private static final Duration TICKET_TTL = Duration.ofHours(24);
 	private static final int MAX_TICKETS = 4096;
-	private static final Duration UPSTREAM_HEADER_TIMEOUT = Duration.ofSeconds(30);
+	private static final Duration UPSTREAM_HEADER_TIMEOUT = Duration.ofSeconds(10);
 	private static final String[] RELAY_HEADERS = {
 		"Content-Type", "Content-Length", "Content-Range", "Accept-Ranges",
 		"Content-Disposition", "Cache-Control", "ETag", "Last-Modified"
@@ -60,7 +60,7 @@ public final class MediaProxy {
 		int port = config.proxyPort;
 		try {
 			HttpServer http = HttpServer.create(new InetSocketAddress(port), 0);
-			this.executor = Executors.newFixedThreadPool(24, runnable -> {
+			this.executor = Executors.newFixedThreadPool(32, runnable -> {
 				Thread thread = new Thread(runnable, "pixelreel-proxy");
 				thread.setDaemon(true);
 				return thread;
@@ -238,15 +238,24 @@ public final class MediaProxy {
 			}
 			if (head) {
 				exchange.sendResponseHeaders(status, -1);
+				response.body().close();
 				return;
+			}
+			if (status / 100 != 2) {
+				PixelReel.LOGGER.warn("Media proxy upstream returned HTTP {} for /{}", status, shortToken(ticket));
 			}
 			exchange.sendResponseHeaders(status, length >= 0L ? length : -1L);
 			try (InputStream body = response.body()) {
 				body.transferTo(exchange.getResponseBody());
 			}
 		} catch (IOException e) {
-			PixelReel.LOGGER.debug("Media proxy relay aborted for a client", e);
+			PixelReel.LOGGER.debug("Media proxy relay aborted for /{}", shortToken(ticket));
 		}
+	}
+
+	private static String shortToken(Ticket ticket) {
+		String token = ticket.token();
+		return token.length() <= 8 ? token : token.substring(0, 8);
 	}
 
 	private static void respond(HttpExchange exchange, int status, byte[] body) {

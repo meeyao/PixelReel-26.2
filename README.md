@@ -4,22 +4,20 @@ Fabric mod for **Minecraft Java Edition 26.2** that lets you place televisions a
 
 Live channels come from a Tunarr (or any M3U + XMLTV) playlist. Movies and shows can come from **Jellyfin**, **Emby**, or **Plex**. Each display keeps its own channel or title, multiple screens can play at once, and audio is positional.
 
-<h2><font color="red">SECURITY NOTICE: THIS FORK IS A SECURITY RESET</font></h2>
+## Security
 
-This repository is a fork/rework of PixelReel after serious multiplayer credential-leak issues were identified in the original code path. Earlier builds could expose media-server URLs, stream URLs, API keys, Plex tokens, or tokenized artwork URLs to players who should not receive them.
-
-This fork treats that as a release-blocking bug class:
+Provider credentials are treated as secrets and never leave the server:
 
 - API keys and Plex tokens stay in server config.
 - World saves do not persist stream URLs, subtitle URLs, tokenized artwork/poster URLs, or Plex part keys.
 - Normal display sync and channel/media browse packets redact secret-bearing URLs.
-- Active playback URLs are temporary and are only sent to permitted nearby clients that need them for local VLC playback.
+- Active playback URLs are temporary and only sent to permitted nearby clients that need them for local VLC playback.
 - On-demand (Jellyfin/Emby/Plex) streams and subtitles are relayed through a **server-side media proxy** (see below), so provider API keys never appear in URLs handed to players' VLC.
 - `./gradlew check` runs a `securityAudit` task that fails on known leak-pattern regressions.
 
 Important limitation: local VLC playback means any player allowed to watch a screen must receive a playable URL while that screen is active. Do not give watch/play permissions to untrusted players, and use limited media-server accounts/tokens for multiplayer servers.
 
-AI-assisted development was used on this fork. Security-sensitive changes are expected to be reviewable in code, covered by the audit checklist, and documented in [SECURITY.md](SECURITY.md). Do not trust claims; inspect the code and run the build checks.
+See [SECURITY.md](SECURITY.md) for the threat model and pre-release checklist.
 
 ## Requirements
 
@@ -95,12 +93,25 @@ Created on first launch at `config/pixelreel.json`.
 
 ### Jellyfin
 
-**Tip:** create a dedicated Jellyfin user with access only to **Movies** and **TV Shows**, or **Anime** then use that user’s API key here. I feel it’s simpler and safer than pointing the mod at your admin account.
+**Tip:** create a dedicated Jellyfin user with access only to **Movies** and **TV Shows**, or **Anime** then use that user’s credentials here. I feel it’s simpler and safer than pointing the mod at your admin account.
+
+**API key or user access token:** `jellyfinApiKey` accepts either a real API key or a normal user access token.
+
+- **API key** — created by an admin at Jellyfin Dashboard → *Advanced* → *API Keys*.
+- **User access token** — no admin/API access needed; extract it from your own browser:
+  1. Log into the Jellyfin web app.
+  2. Open the browser DevTools (**F12**) and switch to the **Network** tab.
+  3. Refresh the page (or open a movie) so requests to your Jellyfin server appear.
+  4. Click any request to the server (e.g. `/Users`, `/Items`, `/Videos`) and look at the **Request Headers**.
+  5. Copy the value of the `X-Emby-Token` header (or the `Token="..."` part of the `Authorization: MediaBrowser` header).
+  6. Paste it into `jellyfinApiKey` in the config (or the in-game Jellyfin config screen).
+
+The value works in stream/subtitle/poster URLs too, since Jellyfin accepts access tokens in place of the `api_key` parameter.
 
 | Key                                   | Default | Meaning                                   |
 | ------------------------------------- | ------- | ----------------------------------------- |
 | `jellyfinUrl`                         | `""`    | Server URL (often port `8096`).           |
-| `jellyfinApiKey`                      | `""`    | API key.                                  |
+| `jellyfinApiKey`                      | `""`    | API key or user access token (see below). |
 | `jellyfinUserId`                      | `""`    | Optional user id                          |
 | `jellyfinMoviesEnabled`               | `true`  | Show movies.                              |
 | `jellyfinTvShowsEnabled`              | `true`  | Show TV series.                           |
@@ -158,14 +169,16 @@ Created on first launch at `config/pixelreel.json`.
 
 ## Media Proxy (Secure Mode)
 
-On-demand streams and subtitles from **Jellyfin**, **Emby**, and **Plex** are relayed through a small HTTP proxy that the mod runs on the Minecraft server. Players' VLC fetches from the proxy with an opaque token instead of fetching the provider URL directly, so the provider's API key or token never leaves the server.
+On-demand streams and subtitles from **Jellyfin**, **Emby**, and **Plex** are relayed through a small HTTP proxy that the mod runs on the **Minecraft server** — the same machine/container that runs your Fabric server. Players' VLC fetches from the proxy with an opaque token instead of fetching the provider URL directly, so the provider's API key or token never leaves the Minecraft server.
 
 ```
-Player VLC ──> Minecraft server :28100/stream/<token>   (no api key)
+Player VLC ──> Minecraft server (TCP 28100) /stream/<token>   (no api key)
                   │
                   ▼
-             Jellyfin/Emby/Plex                        (server holds the key)
+             Jellyfin/Emby/Plex                        (Minecraft server holds the key)
 ```
+
+"Server" above means the **Minecraft server**, not your media server. The proxy listens on **TCP** port `28100` on the Minecraft server's network address; players reach it there. It is **not** a port on your Jellyfin/Emby/Plex machine.
 
 How it behaves:
 
@@ -253,7 +266,7 @@ After a server restart, active playback URLs are intentionally not restored from
 
 | Area | Status | Notes |
 | ---- | ------ | ----- |
-| Fabric mod targeting Minecraft **26.2** | Done | Current supported target for this fork. |
+| Fabric mod targeting Minecraft **26.2** | Done | Current supported target. |
 | Display blocks | Done | Compact TV, Wall TV, Ultrawide Monitor, Cinema Screen, Curved Cinema Screen. |
 | Live TV | Done | Tunarr or direct M3U + XMLTV guide. |
 | On-demand providers | Done | Jellyfin, Emby, and Plex. |
