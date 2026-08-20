@@ -237,7 +237,7 @@ public final class ChannelPlayer implements AutoCloseable {
 	}
 
 	public void tickAudio(float linearGain) {
-		this.desiredGain = Math.clamp(linearGain, 0.0F, 1.0F);
+		this.desiredGain = Math.min(Math.max(linearGain, 0.0F), 1.0F);
 		EmbeddedMediaPlayer current = this.player;
 		if (current == null || this.closed) {
 			return;
@@ -253,7 +253,7 @@ public final class ChannelPlayer implements AutoCloseable {
 
 		float master = Minecraft.getInstance().options.getSoundSourceVolume(SoundSource.MASTER);
 		float records = Minecraft.getInstance().options.getSoundSourceVolume(SoundSource.RECORDS);
-		int volume = (int)Math.round(Math.clamp(this.desiredGain * master * records, 0.0F, 2.0F) * 100.0);
+		int volume = (int)Math.round(Math.min(Math.max(this.desiredGain * master * records, 0.0F), 2.0F) * 100.0);
 		if (!dirty
 			&& this.lastAppliedVolume != Integer.MIN_VALUE
 			&& Math.abs(volume - this.lastAppliedVolume) < VOLUME_CHANGE_THRESHOLD) {
@@ -288,7 +288,7 @@ public final class ChannelPlayer implements AutoCloseable {
 		this.volumeDirty.set(true);
 		this.startSeekApplied = this.initialStartMs <= 0L;
 		try {
-			int caching = Math.clamp(ConfigManager.get().streamCachingMillis, 0, 10000);
+			int caching = Math.min(Math.max(ConfigManager.get().streamCachingMillis, 0), 10000);
 			boolean started = current.media().play(
 				this.url,
 				":network-caching=" + caching,

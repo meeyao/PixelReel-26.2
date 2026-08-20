@@ -5,7 +5,6 @@ import com.pixelreel.blocks.ScreenShapes;
 import com.pixelreel.registry.ModBlockEntities;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
-import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.protocol.Packet;
 import net.minecraft.network.protocol.game.ClientGamePacketListener;
@@ -67,25 +66,25 @@ public class ScreenPanelBlockEntity extends BlockEntity {
 	}
 
 	@Override
-	protected void saveAdditional(CompoundTag output, HolderLookup.Provider registries) {
-		super.saveAdditional(output, registries);
+	protected void saveAdditional(CompoundTag output) {
+		super.saveAdditional(output);
 		if (this.controllerPos != null) {
 			output.putLong(KEY_CONTROLLER, this.controllerPos.asLong());
 		}
 	}
 
 	@Override
-	protected void loadAdditional(CompoundTag input, HolderLookup.Provider registries) {
-		super.loadAdditional(input, registries);
+	protected void loadAdditional(CompoundTag input) {
+		super.loadAdditional(input);
 		long packed = input.contains(KEY_CONTROLLER) ? input.getLong(KEY_CONTROLLER) : Long.MIN_VALUE;
 		this.controllerPos = packed == Long.MIN_VALUE ? null : BlockPos.of(packed);
 		this.cachedShape = null;
 	}
 
 	@Override
-	public CompoundTag getUpdateTag(HolderLookup.Provider registries) {
+	public CompoundTag getUpdateTag() {
 		CompoundTag tag = new CompoundTag();
-		this.saveAdditional(tag, registries);
+		this.saveAdditional(tag);
 		return tag;
 	}
 

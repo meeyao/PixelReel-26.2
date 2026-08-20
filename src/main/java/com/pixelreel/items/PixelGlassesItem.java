@@ -12,6 +12,7 @@ import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.TooltipFlag;
 import net.minecraft.world.level.Level;
+import org.jetbrains.annotations.Nullable;
 
 /**
  * Wearable pixel glasses. While equipped on the head, the client shows the nearest
@@ -74,8 +75,8 @@ public class PixelGlassesItem extends Item {
 	}
 
 	@Override
-	public void appendHoverText(ItemStack stack, TooltipContext context, List<Component> tooltipComponents, TooltipFlag flag) {
-		super.appendHoverText(stack, context, tooltipComponents, flag);
+	public void appendHoverText(ItemStack stack, @Nullable Level level, List<Component> tooltipComponents, TooltipFlag flag) {
+		super.appendHoverText(stack, level, tooltipComponents, flag);
 		tooltipComponents.add(Component.translatable("item.pixelreel.pixel_glasses.tooltip").withStyle(ChatFormatting.GRAY));
 		tooltipComponents.add(Component.translatable("item.pixelreel.pixel_glasses.remove_tooltip").withStyle(ChatFormatting.YELLOW));
 	}

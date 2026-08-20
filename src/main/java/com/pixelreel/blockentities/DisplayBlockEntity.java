@@ -13,7 +13,6 @@ import com.pixelreel.registry.ModBlockEntities;
 import java.util.List;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
-import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.protocol.Packet;
 import net.minecraft.network.protocol.game.ClientGamePacketListener;
@@ -590,7 +589,7 @@ public class DisplayBlockEntity extends BlockEntity {
 	}
 
 	public void setVolume(float value) {
-		float clamped = Math.clamp(value, 0.0F, 1.0F);
+		float clamped = Math.min(Math.max(value, 0.0F), 1.0F);
 		if (Math.abs(this.volume - clamped) >= 1.0E-4F) {
 			this.volume = clamped;
 			this.markDirtyAndSync();
@@ -679,8 +678,8 @@ public class DisplayBlockEntity extends BlockEntity {
 	}
 
 	@Override
-	protected void saveAdditional(CompoundTag output, HolderLookup.Provider registries) {
-		super.saveAdditional(output, registries);
+	protected void saveAdditional(CompoundTag output) {
+		super.saveAdditional(output);
 		output.putBoolean(KEY_POWERED, this.powered);
 		output.putBoolean(KEY_SUSPENDED, this.suspended);
 		output.putString(KEY_CHANNEL_ID, this.channelId);
@@ -721,15 +720,15 @@ public class DisplayBlockEntity extends BlockEntity {
 	}
 
 	@Override
-	protected void loadAdditional(CompoundTag input, HolderLookup.Provider registries) {
-		super.loadAdditional(input, registries);
+	protected void loadAdditional(CompoundTag input) {
+		super.loadAdditional(input);
 		this.powered = input.contains(KEY_POWERED) ? input.getBoolean(KEY_POWERED) : false;
 		this.suspended = input.contains(KEY_SUSPENDED) ? input.getBoolean(KEY_SUSPENDED) : false;
 		this.channelId = clampLength(input.contains(KEY_CHANNEL_ID) ? input.getString(KEY_CHANNEL_ID) : "", Channel.MAX_TEXT);
 		this.channelNumber = Math.max(0, input.contains(KEY_CHANNEL_NUMBER) ? input.getInt(KEY_CHANNEL_NUMBER) : 0);
 		this.channelName = clampLength(input.contains(KEY_CHANNEL_NAME) ? input.getString(KEY_CHANNEL_NAME) : "", Channel.MAX_TEXT);
 		this.streamUrl = clampLength(input.contains(KEY_STREAM_URL) ? input.getString(KEY_STREAM_URL) : "", MAX_STREAM_URL);
-		this.volume = Math.clamp(input.contains(KEY_VOLUME) ? input.getFloat(KEY_VOLUME) : (float)ConfigManager.get().defaultDisplayVolume, 0.0F, 1.0F);
+		this.volume = Math.min(Math.max(input.contains(KEY_VOLUME) ? input.getFloat(KEY_VOLUME) : (float)ConfigManager.get().defaultDisplayVolume, 0.0F), 1.0F);
 		this.channelEpoch = input.contains(KEY_EPOCH) ? input.getInt(KEY_EPOCH) : 0;
 		this.mediaSource = MediaSource.byName(input.contains(KEY_MEDIA_SOURCE) ? input.getString(KEY_MEDIA_SOURCE) : MediaSource.TUNARR.name());
 		this.jellyfinItemId = clampLength(input.contains(KEY_JF_ITEM_ID) ? input.getString(KEY_JF_ITEM_ID) : "", Channel.MAX_TEXT);
@@ -781,9 +780,9 @@ public class DisplayBlockEntity extends BlockEntity {
 	}
 
 	@Override
-	public CompoundTag getUpdateTag(HolderLookup.Provider registries) {
+	public CompoundTag getUpdateTag() {
 		CompoundTag tag = new CompoundTag();
-		this.saveAdditional(tag, registries);
+		this.saveAdditional(tag);
 		return tag;
 	}
 

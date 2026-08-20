@@ -44,6 +44,6 @@ public record GuideInfo(
 		if (!this.hasNow() || this.nowEnd <= this.nowStart) {
 			return -1.0F;
 		}
-		return Math.clamp((float)(epochSeconds - this.nowStart) / (this.nowEnd - this.nowStart), 0.0F, 1.0F);
+		return Math.min(Math.max((float)(epochSeconds - this.nowStart) / (this.nowEnd - this.nowStart), 0.0F), 1.0F);
 	}
 }

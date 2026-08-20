@@ -163,7 +163,7 @@ public class OnDemandSeriesScreen extends Screen {
 
 	private void clampScroll() {
 		int viewHeight = this.height - FOOTER_HEIGHT - this.headerHeight();
-		this.scroll = Math.clamp(this.scroll, 0.0, Math.max(0, this.contentHeight() - viewHeight));
+		this.scroll = Math.min(Math.max(this.scroll, 0.0), Math.max(0, this.contentHeight() - viewHeight));
 	}
 
 	@Override

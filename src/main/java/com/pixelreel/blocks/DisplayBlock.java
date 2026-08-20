@@ -9,6 +9,7 @@ import com.pixelreel.registry.ModBlocks;
 import com.pixelreel.server.ScreenControllerLogic;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
@@ -214,7 +215,7 @@ public class DisplayBlock extends BaseEntityBlock {
 	}
 
 	@Override
-	protected InteractionResult useWithoutItem(BlockState state, Level level, BlockPos pos, Player player, BlockHitResult hitResult) {
+	protected InteractionResult use(BlockState state, Level level, BlockPos pos, Player player, InteractionHand hand, BlockHitResult hitResult) {
 		return interactWithDisplay(level, pos, player);
 	}
 

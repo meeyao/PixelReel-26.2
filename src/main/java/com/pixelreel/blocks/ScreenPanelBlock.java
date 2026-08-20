@@ -4,6 +4,7 @@ import com.mojang.serialization.MapCodec;
 import com.pixelreel.blockentities.DisplayBlockEntity;
 import com.pixelreel.blockentities.ScreenPanelBlockEntity;
 import net.minecraft.core.BlockPos;
+import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.context.BlockPlaceContext;
@@ -93,7 +94,7 @@ public class ScreenPanelBlock extends BaseEntityBlock {
 	}
 
 	@Override
-	protected InteractionResult useWithoutItem(BlockState state, Level level, BlockPos pos, Player player, BlockHitResult hitResult) {
+	protected InteractionResult use(BlockState state, Level level, BlockPos pos, Player player, InteractionHand hand, BlockHitResult hitResult) {
 		if (level.getBlockEntity(pos) instanceof ScreenPanelBlockEntity panel) {
 			DisplayBlockEntity controller = DisplayBlock.displayAt(level, panel.controllerPos());
 			if (controller != null) {

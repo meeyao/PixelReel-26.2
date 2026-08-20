@@ -128,7 +128,7 @@ public class OnDemandEpisodeScreen extends Screen {
 			return true;
 		}
 		int content = this.rows.size() * (ROW_HEIGHT + 4);
-		this.scroll = Math.clamp(this.scroll - verticalDelta * 24.0, 0.0, Math.max(0, content - (this.height - 70)));
+		this.scroll = Math.min(Math.max(this.scroll - verticalDelta * 24.0, 0.0), Math.max(0, content - (this.height - 70)));
 		this.applyVisibility();
 		return true;
 	}

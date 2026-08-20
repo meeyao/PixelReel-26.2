@@ -78,7 +78,7 @@ public class OnDemandPosterCard extends AbstractWidget {
 
 		if (this.item.hasResume()) {
 			long runtime = Math.max(1L, this.item.runtimeMs());
-			float progress = Math.clamp(this.item.resumePositionMs() / (float)runtime, 0.0F, 1.0F);
+			float progress = Math.min(Math.max(this.item.resumePositionMs() / (float)runtime, 0.0F), 1.0F);
 			int barY = thumbY + thumbHeight - 3;
 			graphics.fill(thumbX, barY, thumbX + thumbWidth, barY + 3, 0xFF2A3238);
 			graphics.fill(thumbX, barY, thumbX + (int)(thumbWidth * progress), barY + 3, COLOR_PROGRESS);

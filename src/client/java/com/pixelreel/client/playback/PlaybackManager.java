@@ -273,7 +273,7 @@ public final class PlaybackManager {
 		if (distance <= half) {
 			return 1.0;
 		}
-		return Math.clamp(1.0 - (distance - half) / (audioRange - half), 0.0, 1.0);
+		return Math.min(Math.max(1.0 - (distance - half) / (audioRange - half), 0.0), 1.0);
 	}
 
 	private static String host(String url) {

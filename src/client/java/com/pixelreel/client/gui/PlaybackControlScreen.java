@@ -104,7 +104,7 @@ public class PlaybackControlScreen extends Screen {
 
 		long pos = this.display.currentPlaybackPositionMs();
 		long dur = Math.max(1L, this.display.getPlaybackDurationMs());
-		float progress = Math.clamp(pos / (float)dur, 0.0F, 1.0F);
+		float progress = Math.min(Math.max(pos / (float)dur, 0.0F), 1.0F);
 		int barLeft = this.width / 2 - 140;
 		int barTop = 40;
 		int barWidth = 280;

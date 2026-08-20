@@ -7,7 +7,9 @@ import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.TooltipFlag;
+import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
+import org.jetbrains.annotations.Nullable;
 
 /** tooltip contains the "pixelReel", "TV", "screen", "cinema" and "monitor" keywords */
 public class DisplayBlockItem extends BlockItem {
@@ -19,8 +21,8 @@ public class DisplayBlockItem extends BlockItem {
 	}
 
 	@Override
-	public void appendHoverText(ItemStack stack, TooltipContext context, List<Component> tooltipComponents, TooltipFlag flag) {
-		super.appendHoverText(stack, context, tooltipComponents, flag);
+	public void appendHoverText(ItemStack stack, @Nullable Level level, List<Component> tooltipComponents, TooltipFlag flag) {
+		super.appendHoverText(stack, level, tooltipComponents, flag);
 		tooltipComponents.add(Component.translatable("item.pixelreel.display.keywords").withStyle(ChatFormatting.DARK_GRAY));
 		tooltipComponents.add(Component.translatable(this.tooltipKey).withStyle(ChatFormatting.GRAY));
 	}

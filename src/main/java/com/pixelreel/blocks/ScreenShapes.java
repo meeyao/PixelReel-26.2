@@ -90,7 +90,7 @@ public final class ScreenShapes {
 	}
 
 	public static VoxelShape controllerStandShape(DisplayType type, Direction facing) {
-		float z = Math.clamp(type.baseZ() - 1.0F, 1.0F, 14.0F);
+		float z = Math.min(Math.max(type.baseZ() - 1.0F, 1.0F), 14.0F);
 		VoxelShape north = Block.box(4.0, 0.0, z - 2.0F, 12.0, 8.0, z + 2.0F);
 		return rotateFromNorth(north, facing);
 	}

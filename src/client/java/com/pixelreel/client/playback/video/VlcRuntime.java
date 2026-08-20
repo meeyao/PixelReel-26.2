@@ -47,7 +47,7 @@ public final class VlcRuntime {
 				PixelReel.LOGGER.warn("pixelReel: {}", unavailableReason);
 				return;
 			}
-			int caching = Math.clamp(ConfigManager.get().streamCachingMillis, 0, 10000);
+			int caching = Math.min(Math.max(ConfigManager.get().streamCachingMillis, 0), 10000);
 			List<String> args = List.of(
 				"--quiet",
 				"--intf=dummy",

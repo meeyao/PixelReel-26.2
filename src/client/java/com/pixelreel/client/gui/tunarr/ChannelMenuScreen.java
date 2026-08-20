@@ -253,7 +253,7 @@ public class ChannelMenuScreen extends Screen {
 
 	private void clampScroll() {
 		int viewHeight = this.height - FOOTER_HEIGHT - HEADER_HEIGHT;
-		this.scroll = Math.clamp(this.scroll, 0.0, Math.max(0, this.contentHeight() - viewHeight));
+		this.scroll = Math.min(Math.max(this.scroll, 0.0), Math.max(0, this.contentHeight() - viewHeight));
 	}
 
 	@Override
