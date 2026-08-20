@@ -24,7 +24,7 @@ import net.minecraft.core.SectionPos;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.chunk.LevelChunk;
-import net.minecraft.world.level.chunk.status.ChunkStatus;
+import net.minecraft.world.level.chunk.ChunkStatus;
 import net.minecraft.world.phys.Vec3;
 import org.jetbrains.annotations.Nullable;
 

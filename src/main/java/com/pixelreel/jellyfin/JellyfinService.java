@@ -236,7 +236,7 @@ public final class JellyfinService {
 			JellyfinItemSummary nextSeason = seasons.get(i);
 			List<JellyfinItemSummary> nextEpisodes = this.episodesBySeason.getOrDefault(nextSeason.id(), List.of());
 			if (!nextEpisodes.isEmpty()) {
-				return Optional.of(nextEpisodes.getFirst());
+				return Optional.of(nextEpisodes.get(0));
 			}
 		}
 		return Optional.empty();

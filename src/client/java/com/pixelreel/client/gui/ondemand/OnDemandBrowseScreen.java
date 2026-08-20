@@ -244,11 +244,11 @@ public class OnDemandBrowseScreen extends Screen {
 	}
 
 	@Override
-	public boolean mouseScrolled(double mouseX, double mouseY, double horizontalDelta, double verticalDelta) {
-		if (super.mouseScrolled(mouseX, mouseY, horizontalDelta, verticalDelta)) {
+	public boolean mouseScrolled(double mouseX, double mouseY, double delta) {
+		if (super.mouseScrolled(mouseX, mouseY, delta)) {
 			return true;
 		}
-		this.scroll -= verticalDelta * 24.0;
+		this.scroll -= delta * 24.0;
 		this.clampScroll();
 		this.applyCardVisibility();
 		return true;

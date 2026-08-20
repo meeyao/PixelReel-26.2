@@ -256,12 +256,12 @@ public class DisplayBlockEntityRenderer implements BlockEntityRenderer<DisplayBl
 		float normalZ,
 		int packedLight
 	) {
-		buffer.addVertex(pose, xPixels * PIXEL, yPixels * PIXEL, zPixels * PIXEL)
-			.setColor(255, 255, 255, 255)
-			.setUv(u, v)
-			.setOverlay(OverlayTexture.NO_OVERLAY)
-			.setLight(packedLight)
-			.setNormal(pose, normalX, 0.0F, normalZ);
+		buffer.vertex(pose.pose(), xPixels * PIXEL, yPixels * PIXEL, zPixels * PIXEL)
+			.color(255, 255, 255, 255)
+			.uv(u, v)
+			.overlayCoords(OverlayTexture.NO_OVERLAY)
+			.uv2(packedLight)
+			.normal(pose.normal(), normalX, 0.0F, normalZ);
 	}
 
 	@Override

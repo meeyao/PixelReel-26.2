@@ -275,10 +275,14 @@ public final class PosterCache {
 					if (!this.isCurrent(key, entry)) {
 						return;
 					}
-					byte[] bytes = switch (candidate) {
-						case Candidate.LocalFile localFile -> readLocal(localFile.path());
-						case Candidate.Remote remote -> this.fetchRemote(remote.url());
-					};
+					byte[] bytes;
+					if (candidate instanceof Candidate.LocalFile localFile) {
+						bytes = readLocal(localFile.path());
+					} else if (candidate instanceof Candidate.Remote remote) {
+						bytes = this.fetchRemote(remote.url());
+					} else {
+						bytes = null;
+					}
 					if (bytes == null) {
 						continue;
 					}
@@ -287,10 +291,14 @@ public final class PosterCache {
 					if (prepared == null || !this.isCurrent(key, entry)) {
 						continue;
 					}
-					String source = switch (candidate) {
-						case Candidate.LocalFile localFile -> localFile.path().toString();
-						case Candidate.Remote remote -> remote.url();
-					};
+					String source;
+					if (candidate instanceof Candidate.LocalFile localFile) {
+						source = localFile.path().toString();
+					} else if (candidate instanceof Candidate.Remote remote) {
+						source = remote.url();
+					} else {
+						source = "";
+					}
 					this.uploadQueue.offer(() -> this.installPrepared(key, entry, prepared, source));
 					return;
 				} catch (Throwable t) {

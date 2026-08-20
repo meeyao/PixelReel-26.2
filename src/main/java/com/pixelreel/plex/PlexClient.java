@@ -147,7 +147,7 @@ public final class PlexClient {
 	public @Nullable JellyfinItemSummary getItem(String ratingKey) throws Exception {
 		JsonObject root = this.getJson("/library/metadata/" + pathSeg(ratingKey));
 		List<JellyfinItemSummary> items = this.parseMetadataList(root);
-		return items.isEmpty() ? null : items.getFirst();
+		return items.isEmpty() ? null : items.get(0);
 	}
 
 	public PlaybackStart startPlayback(String ratingKey, long startPositionMs) throws Exception {

@@ -90,7 +90,7 @@ public class OnDemandDetailScreen extends Screen {
 		if (items.isEmpty()) {
 			return false;
 		}
-		this.item = items.getFirst();
+		this.item = items.get(0);
 		return true;
 	}
 

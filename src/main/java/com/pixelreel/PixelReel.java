@@ -28,7 +28,6 @@ public class PixelReel implements ModInitializer {
 		ModItems.init();
 		ModBlockEntities.init();
 		ModCreativeTabs.init();
-		ModNetworkPayloads.register();
 		ServerNetworking.register();
 		TvCommand.register();
 		ServerLifecycleEvents.SERVER_STARTED.register(server -> {

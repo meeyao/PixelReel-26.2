@@ -6,7 +6,6 @@ import com.pixelreel.client.GlassesControls;
 import com.pixelreel.client.playback.PlaybackManager;
 import com.pixelreel.client.playback.PlaybackStatus;
 import com.pixelreel.items.PixelGlassesItem;
-import net.minecraft.client.DeltaTracker;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
@@ -41,7 +40,7 @@ public final class GlassesOverlay {
 			&& PixelGlassesItem.isWearing(minecraft.player);
 	}
 
-	public static void render(GuiGraphics graphics, DeltaTracker deltaTracker) {
+	public static void render(GuiGraphics graphics, float deltaTracker) {
 		Minecraft minecraft = Minecraft.getInstance();
 		if (minecraft.player == null || minecraft.level == null) {
 			wasWearing = false;

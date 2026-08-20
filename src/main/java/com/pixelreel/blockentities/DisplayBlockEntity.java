@@ -507,7 +507,7 @@ public class DisplayBlockEntity extends BlockEntity {
 			return -1;
 		}
 		if (this.selectedSubtitleIndex < 0) {
-			return this.subtitleTracks.getFirst().index();
+			return this.subtitleTracks.get(0).index();
 		}
 		for (int i = 0; i < this.subtitleTracks.size(); i++) {
 			if (this.subtitleTracks.get(i).index() == this.selectedSubtitleIndex) {
@@ -720,8 +720,8 @@ public class DisplayBlockEntity extends BlockEntity {
 	}
 
 	@Override
-	protected void loadAdditional(CompoundTag input) {
-		super.loadAdditional(input);
+	public void load(CompoundTag input) {
+		super.load(input);
 		this.powered = input.contains(KEY_POWERED) ? input.getBoolean(KEY_POWERED) : false;
 		this.suspended = input.contains(KEY_SUSPENDED) ? input.getBoolean(KEY_SUSPENDED) : false;
 		this.channelId = clampLength(input.contains(KEY_CHANNEL_ID) ? input.getString(KEY_CHANNEL_ID) : "", Channel.MAX_TEXT);

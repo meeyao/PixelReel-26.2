@@ -74,8 +74,8 @@ public class ScreenPanelBlockEntity extends BlockEntity {
 	}
 
 	@Override
-	protected void loadAdditional(CompoundTag input) {
-		super.loadAdditional(input);
+	public void load(CompoundTag input) {
+		super.load(input);
 		long packed = input.contains(KEY_CONTROLLER) ? input.getLong(KEY_CONTROLLER) : Long.MIN_VALUE;
 		this.controllerPos = packed == Long.MIN_VALUE ? null : BlockPos.of(packed);
 		this.cachedShape = null;

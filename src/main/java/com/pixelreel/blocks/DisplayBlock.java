@@ -1,6 +1,5 @@
 package com.pixelreel.blocks;
 
-import com.mojang.serialization.MapCodec;
 import com.pixelreel.ClientBridge;
 import com.pixelreel.blockentities.DisplayBlockEntity;
 import com.pixelreel.blockentities.ScreenPanelBlockEntity;
@@ -50,12 +49,6 @@ public class DisplayBlock extends BaseEntityBlock {
 		super(properties);
 		this.type = type;
 		this.registerDefaultState(this.stateDefinition.any().setValue(FACING, Direction.NORTH).setValue(POWERED, Boolean.FALSE));
-	}
-
-	@Override
-	protected MapCodec<? extends BaseEntityBlock> codec() {
-		DisplayType displayType = this.type;
-		return simpleCodec(properties -> new DisplayBlock(properties, displayType));
 	}
 
 	public DisplayType type() {
@@ -110,7 +103,7 @@ public class DisplayBlock extends BaseEntityBlock {
 	}
 
 	@Override
-	protected void onRemove(BlockState state, Level level, BlockPos pos, BlockState newState, boolean movedByPiston) {
+	public void onRemove(BlockState state, Level level, BlockPos pos, BlockState newState, boolean movedByPiston) {
 		if (!state.is(newState.getBlock())) {
 			removePanels(level, pos, this.type, state.getValue(FACING));
 		}
@@ -156,17 +149,17 @@ public class DisplayBlock extends BaseEntityBlock {
 	}
 
 	@Override
-	protected VoxelShape getShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context) {
+	public VoxelShape getShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context) {
 		return controllerShape(state);
 	}
 
 	@Override
-	protected VoxelShape getCollisionShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context) {
+	public VoxelShape getCollisionShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context) {
 		return controllerShape(state);
 	}
 
 	@Override
-	protected VoxelShape getInteractionShape(BlockState state, BlockGetter level, BlockPos pos) {
+	public VoxelShape getInteractionShape(BlockState state, BlockGetter level, BlockPos pos) {
 		return controllerShape(state);
 	}
 
@@ -180,42 +173,42 @@ public class DisplayBlock extends BaseEntityBlock {
 	}
 
 	@Override
-	protected VoxelShape getOcclusionShape(BlockState state, BlockGetter level, BlockPos pos) {
+	public VoxelShape getOcclusionShape(BlockState state, BlockGetter level, BlockPos pos) {
 		return Shapes.empty();
 	}
 
 	@Override
-	protected boolean useShapeForLightOcclusion(BlockState state) {
+	public boolean useShapeForLightOcclusion(BlockState state) {
 		return true;
 	}
 
 	@Override
-	protected boolean isCollisionShapeFullBlock(BlockState state, BlockGetter level, BlockPos pos) {
+	public boolean isCollisionShapeFullBlock(BlockState state, BlockGetter level, BlockPos pos) {
 		return false;
 	}
 
 	@Override
-	protected boolean propagatesSkylightDown(BlockState state, BlockGetter level, BlockPos pos) {
+	public boolean propagatesSkylightDown(BlockState state, BlockGetter level, BlockPos pos) {
 		return true;
 	}
 
 	@Override
-	protected float getShadeBrightness(BlockState state, BlockGetter level, BlockPos pos) {
+	public float getShadeBrightness(BlockState state, BlockGetter level, BlockPos pos) {
 		return 1.0F;
 	}
 
 	@Override
-	protected BlockState rotate(BlockState state, Rotation rotation) {
+	public BlockState rotate(BlockState state, Rotation rotation) {
 		return state.setValue(FACING, rotation.rotate(state.getValue(FACING)));
 	}
 
 	@Override
-	protected BlockState mirror(BlockState state, Mirror mirror) {
+	public BlockState mirror(BlockState state, Mirror mirror) {
 		return state.rotate(mirror.getRotation(state.getValue(FACING)));
 	}
 
 	@Override
-	protected InteractionResult use(BlockState state, Level level, BlockPos pos, Player player, InteractionHand hand, BlockHitResult hitResult) {
+	public InteractionResult use(BlockState state, Level level, BlockPos pos, Player player, InteractionHand hand, BlockHitResult hitResult) {
 		return interactWithDisplay(level, pos, player);
 	}
 

@@ -24,11 +24,13 @@ import java.util.List;
 import java.util.Optional;
 import java.util.function.Supplier;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
+import net.fabricmc.fabric.api.networking.v1.PacketByteBufs;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.minecraft.ChatFormatting;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.core.BlockPos;
+import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.chat.ClickEvent;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.HoverEvent;
@@ -91,7 +93,9 @@ public final class TvCommand {
 			source.sendFailure(Component.translatable("command.pixelreel.no_screen_in_sight"));
 			return 0;
 		}
-		ServerPlayNetworking.send(player, new ModNetworkPayloads.OpenMenu(display.getBlockPos()));
+		FriendlyByteBuf openBuf = PacketByteBufs.create();
+		new ModNetworkPayloads.OpenMenu(display.getBlockPos()).writeToBuf(openBuf);
+		ServerPlayNetworking.send(player, ModNetworkPayloads.OpenMenu.ID, openBuf);
 		return 1;
 	}
 
@@ -304,7 +308,9 @@ public final class TvCommand {
 
 		ServerPlayer player = source.getPlayer();
 		if (player != null) {
-			ServerPlayNetworking.send(player, new ModNetworkPayloads.ShowClientStatus(display.getBlockPos()));
+			FriendlyByteBuf statusBuf = PacketByteBufs.create();
+			new ModNetworkPayloads.ShowClientStatus(display.getBlockPos()).writeToBuf(statusBuf);
+			ServerPlayNetworking.send(player, ModNetworkPayloads.ShowClientStatus.ID, statusBuf);
 		}
 		return 1;
 	}
@@ -325,7 +331,9 @@ public final class TvCommand {
 			source.sendFailure(Component.translatable("command.pixelreel.no_screen_in_sight"));
 			return 0;
 		}
-		ServerPlayNetworking.send(player, new ModNetworkPayloads.RetryDisplay(display.getBlockPos()));
+		FriendlyByteBuf retryBuf = PacketByteBufs.create();
+		new ModNetworkPayloads.RetryDisplay(display.getBlockPos()).writeToBuf(retryBuf);
+		ServerPlayNetworking.send(player, ModNetworkPayloads.RetryDisplay.ID, retryBuf);
 		source.sendSuccess(() -> Component.translatable("command.pixelreel.retrying").withStyle(ChatFormatting.GREEN), false);
 		return 1;
 	}
@@ -407,7 +415,9 @@ public final class TvCommand {
 		}
 		DisplayBlockEntity display = lookedAtDisplay(source);
 		BlockPos pos = display == null ? player.blockPosition() : display.getBlockPos();
-		ServerPlayNetworking.send(player, new ModNetworkPayloads.OpenMenu(pos));
+		FriendlyByteBuf openBuf2 = PacketByteBufs.create();
+		new ModNetworkPayloads.OpenMenu(pos).writeToBuf(openBuf2);
+		ServerPlayNetworking.send(player, ModNetworkPayloads.OpenMenu.ID, openBuf2);
 		ServerNetworking.sendMediaFeatures(player);
 		return 1;
 	}

@@ -347,13 +347,15 @@ public final class ChannelPlayer implements AutoCloseable {
 				current.controls().stop();
 			} catch (Throwable ignored) {
 			}
-			Thread.ofVirtual().name("pixelreel-release").start(() -> {
+			Thread t = new Thread(() -> {
 				try {
 					current.release();
-				} catch (Throwable t) {
-					PixelReel.LOGGER.warn("Error releasing the media player for {}", ChannelService.hostOnly(this.url), t);
+				} catch (Throwable t2) {
+					PixelReel.LOGGER.warn("Error releasing the media player for {}", ChannelService.hostOnly(this.url), t2);
 				}
-			});
+			}, "pixelreel-release");
+			t.setDaemon(true);
+			t.start();
 		}
 		this.subtitleOverlay.clear();
 		this.videoTexture.close();

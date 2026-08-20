@@ -1,6 +1,5 @@
 package com.pixelreel.blocks;
 
-import com.mojang.serialization.MapCodec;
 import com.pixelreel.blockentities.DisplayBlockEntity;
 import com.pixelreel.blockentities.ScreenPanelBlockEntity;
 import net.minecraft.core.BlockPos;
@@ -21,16 +20,10 @@ import org.jetbrains.annotations.Nullable;
 
 /** added invisible collision over the active screen */
 public class ScreenPanelBlock extends BaseEntityBlock {
-	public static final MapCodec<ScreenPanelBlock> CODEC = simpleCodec(ScreenPanelBlock::new);
 	private static final VoxelShape FALLBACK = net.minecraft.world.level.block.Block.box(0.0, 0.0, 7.0, 16.0, 16.0, 9.0);
 
 	public ScreenPanelBlock(Properties properties) {
 		super(properties);
-	}
-
-	@Override
-	protected MapCodec<? extends BaseEntityBlock> codec() {
-		return CODEC;
 	}
 
 	@Override
@@ -44,42 +37,42 @@ public class ScreenPanelBlock extends BaseEntityBlock {
 	}
 
 	@Override
-	protected VoxelShape getShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context) {
+	public VoxelShape getShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context) {
 		return shapeAt(level, pos);
 	}
 
 	@Override
-	protected VoxelShape getCollisionShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context) {
+	public VoxelShape getCollisionShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context) {
 		return shapeAt(level, pos);
 	}
 
 	@Override
-	protected VoxelShape getInteractionShape(BlockState state, BlockGetter level, BlockPos pos) {
+	public VoxelShape getInteractionShape(BlockState state, BlockGetter level, BlockPos pos) {
 		return shapeAt(level, pos);
 	}
 
 	@Override
-	protected VoxelShape getOcclusionShape(BlockState state, BlockGetter level, BlockPos pos) {
+	public VoxelShape getOcclusionShape(BlockState state, BlockGetter level, BlockPos pos) {
 		return Shapes.empty();
 	}
 
 	@Override
-	protected boolean useShapeForLightOcclusion(BlockState state) {
+	public boolean useShapeForLightOcclusion(BlockState state) {
 		return true;
 	}
 
 	@Override
-	protected boolean isCollisionShapeFullBlock(BlockState state, BlockGetter level, BlockPos pos) {
+	public boolean isCollisionShapeFullBlock(BlockState state, BlockGetter level, BlockPos pos) {
 		return false;
 	}
 
 	@Override
-	protected boolean propagatesSkylightDown(BlockState state, BlockGetter level, BlockPos pos) {
+	public boolean propagatesSkylightDown(BlockState state, BlockGetter level, BlockPos pos) {
 		return true;
 	}
 
 	@Override
-	protected float getShadeBrightness(BlockState state, BlockGetter level, BlockPos pos) {
+	public float getShadeBrightness(BlockState state, BlockGetter level, BlockPos pos) {
 		return 1.0F;
 	}
 
@@ -94,7 +87,7 @@ public class ScreenPanelBlock extends BaseEntityBlock {
 	}
 
 	@Override
-	protected InteractionResult use(BlockState state, Level level, BlockPos pos, Player player, InteractionHand hand, BlockHitResult hitResult) {
+	public InteractionResult use(BlockState state, Level level, BlockPos pos, Player player, InteractionHand hand, BlockHitResult hitResult) {
 		if (level.getBlockEntity(pos) instanceof ScreenPanelBlockEntity panel) {
 			DisplayBlockEntity controller = DisplayBlock.displayAt(level, panel.controllerPos());
 			if (controller != null) {

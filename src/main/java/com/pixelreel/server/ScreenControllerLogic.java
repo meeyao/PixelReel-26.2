@@ -220,7 +220,7 @@ public final class ScreenControllerLogic {
 		if (powered && !display.hasChannel()) {
 			List<Channel> channels = ChannelService.INSTANCE.cachedChannels();
 			if (!channels.isEmpty()) {
-				display.tuneTo(channels.getFirst());
+				display.tuneTo(channels.get(0));
 			} else {
 				ChannelService.INSTANCE.channels(false);
 			}
