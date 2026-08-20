@@ -10,15 +10,8 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 @Mixin(Gui.class)
 public class GuiMixin {
-	@Inject(method = "renderCrosshair", at = @At("HEAD"), cancellable = true)
-	private void pixelreel$hideCrosshairWhileGlasses(GuiGraphics graphics, float deltaTracker, CallbackInfo ci) {
-		if (GlassesOverlay.shouldHideHud()) {
-			ci.cancel();
-		}
-	}
-
-	@Inject(method = "renderHotbarAndDecorations", at = @At("HEAD"), cancellable = true)
-	private void pixelreel$hideHotbarWhileGlasses(GuiGraphics graphics, float deltaTracker, CallbackInfo ci) {
+	@Inject(method = "render", at = @At("HEAD"), cancellable = true)
+	private void pixelreel$hideHudWhileGlasses(GuiGraphics graphics, float deltaTracker, CallbackInfo ci) {
 		if (GlassesOverlay.shouldHideHud()) {
 			ci.cancel();
 		}
