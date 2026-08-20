@@ -1,6 +1,6 @@
 # pixelReel
 
-Fabric mod for **Minecraft Java Edition 26.2** that lets you place televisions and cinema screens in your world and watch **live TV** and **on-demand media** together with friends.
+Fabric mod for **Minecraft Java Edition 1.20.1** that lets you place televisions and cinema screens in your world and watch **live TV** and **on-demand media** together with friends.
 
 Live channels come from a Tunarr (or any M3U + XMLTV) playlist. Movies and shows can come from **Jellyfin**, **Emby**, or **Plex**. Each display keeps its own channel or title, multiple screens can play at once, and audio is positional.
 
@@ -24,10 +24,10 @@ See [SECURITY.md](SECURITY.md) for the threat model and pre-release checklist.
 
 | Requirement                   | Notes                                                                                             |
 | ----------------------------- | ------------------------------------------------------------------------------------------------- |
-| **Java 25+**                  | Required by this snapshot toolchain.                                                              |
-| **Minecraft 26.2** | Built against this stable release.                                                          |
-| **Fabric Loader** `>=0.19.3`  | Pinned in `gradle.properties`.                                                                    |
-| **Fabric API**                | Use the build matching `26.2` (see `gradle.properties`).                                          |
+| **Java 17+**                  | Required by this version.                                                                          |
+| **Minecraft 1.20.1** | Built against this stable release.                                                          |
+| **Fabric Loader** `>=0.15.11`  | Pinned in `gradle.properties`.                                                                    |
+| **Fabric API**                | Use the build matching `1.20.1` (see `gradle.properties`).                                        |
 | **VLC (64-bit)**              | Needed on each **client** for video/audio. Install from [videolan.org](https://www.videolan.org). |
 
 
@@ -56,7 +56,7 @@ gradlew.bat clean build
 The installable JAR is:
 
 ```text
-build\libs\pixelreel-1.2.0.jar
+build\libs\pixelreel-1.0.0.jar
 ```
 
 Use the JAR **without** `-sources`.
@@ -69,9 +69,9 @@ run-client.bat
 
 ## Installing
 
-1. Install Fabric Loader for Minecraft **26.2**.
+1. Install Fabric Loader for Minecraft **1.20.1**.
 2. Put **Fabric API** in your `mods` folder.
-3. Put `pixelreel-1.2.0.jar` in `mods`.
+3. Put `pixelreel-1.0.0.jar` in `mods`.
 4. Install **64-bit VLC** on every client that should see video.
 
 The mod runs on clients and servers (`environment: *`). For multiplayer, **both sides** need the mod. VLC is only required on clients.
@@ -266,7 +266,7 @@ After a server restart, active playback URLs are intentionally not restored from
 
 | Area | Status | Notes |
 | ---- | ------ | ----- |
-| Fabric mod targeting Minecraft **26.2** | Done | Current supported target. |
+| Fabric mod targeting Minecraft **1.20.1** | Done | Current supported target. |
 | Display blocks | Done | Compact TV, Wall TV, Ultrawide Monitor, Cinema Screen, Curved Cinema Screen. |
 | Live TV | Done | Tunarr or direct M3U + XMLTV guide. |
 | On-demand providers | Done | Jellyfin, Emby, and Plex. |
@@ -292,7 +292,7 @@ After a server restart, active playback URLs are intentionally not restored from
 | **Movie scheduler** | Planned | Medium | Queue showtimes (date/time + title or channel). Auto power-on, start playback, and optional lobby announcements for cinema nights. |
 | **YouTube / streaming integration** | Deferred | Medium | Must not ship until provider URL/security behavior is understood. |
 | **Posters as paintings** | Deferred | Medium | Needs a safe artwork proxy/cache model before remote provider artwork is exposed. |
-| **Fabric on stable versions** | Planned | High | Port from `26.2` to older/stable Fabric target **1.20.1**. |
+| **Fabric on stable versions** | Done | High | Port from `26.2` to older/stable Fabric target **1.20.1**. |
 | **NeoForge support** | Planned | High | First-class NeoForge build so servers/clients on NeoForge can run pixelReel. |
 | **Forge support** | Planned | Medium | Forge port after (or alongside) NeoForge, depending on version demand. |
 
