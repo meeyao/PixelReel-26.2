@@ -45,6 +45,11 @@ public final class ClientNetworking {
 			});
 		});
 
+		ClientPlayNetworking.registerGlobalReceiver(ModNetworkPayloads.ZoneList.ID, (client, handler, buf, sender) -> {
+			ModNetworkPayloads.ZoneList payload = ModNetworkPayloads.ZoneList.readFromBuf(buf);
+			client.execute(() -> ClientZoneCache.INSTANCE.update(payload.zones()));
+		});
+
 		ClientPlayNetworking.registerGlobalReceiver(ModNetworkPayloads.OpenMenu.ID, (client, handler, buf, sender) -> {
 			ModNetworkPayloads.OpenMenu payload = ModNetworkPayloads.OpenMenu.readFromBuf(buf);
 			client.execute(() -> openMenu(payload.pos()));

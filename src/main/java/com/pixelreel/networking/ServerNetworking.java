@@ -18,6 +18,8 @@ import com.pixelreel.ondemand.OnDemandProvider;
 import com.pixelreel.permissions.CinemaPermissions;
 import com.pixelreel.plex.PlexService;
 import com.pixelreel.server.ScreenControllerLogic;
+import com.pixelreel.zones.Zone;
+import com.pixelreel.zones.ZoneManager;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
@@ -633,6 +635,18 @@ public final class ServerNetworking {
 		FriendlyByteBuf buf = PacketByteBufs.create();
 		new ModNetworkPayloads.ChannelList(status, entries).writeToBuf(buf);
 		ServerPlayNetworking.send(player, ModNetworkPayloads.ChannelList.ID, buf);
+	}
+
+	public static void sendZoneList(ServerPlayer player) {
+		FriendlyByteBuf buf = PacketByteBufs.create();
+		new ModNetworkPayloads.ZoneList(ZoneManager.INSTANCE.allZones()).writeToBuf(buf);
+		ServerPlayNetworking.send(player, ModNetworkPayloads.ZoneList.ID, buf);
+	}
+
+	public static void broadcastZoneList(MinecraftServer server) {
+		for (ServerPlayer player : server.getPlayerList().getPlayers()) {
+			sendZoneList(player);
+		}
 	}
 
 	private static void runOnServer(ServerPlayer player, Runnable action) {

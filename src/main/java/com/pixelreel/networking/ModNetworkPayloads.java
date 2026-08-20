@@ -9,6 +9,7 @@ import com.pixelreel.jellyfin.JellyfinLibrary;
 import com.pixelreel.jellyfin.JellyfinService;
 import com.pixelreel.jellyfin.JellyfinStatus;
 import com.pixelreel.ondemand.OnDemandProvider;
+import com.pixelreel.zones.Zone;
 import java.util.ArrayList;
 import java.util.List;
 import net.minecraft.core.BlockPos;
@@ -795,6 +796,33 @@ public final class ModNetworkPayloads {
 			}
 			JellyfinStatus status = JellyfinStatus.readFromBuf(buf);
 			return new PlexConfigData(url, movies, shows, hasToken, selected, libraries, status);
+		}
+	}
+
+	public record ZoneList(List<Zone> zones) {
+		public static final ResourceLocation ID = new ResourceLocation(PixelReel.MOD_ID, "zone_list");
+
+		public void writeToBuf(FriendlyByteBuf buf) {
+			buf.writeVarInt(this.zones.size());
+			for (Zone zone : this.zones) {
+				buf.writeUtf(zone.name(), 64);
+				buf.writeUtf(zone.dimension(), 128);
+				buf.writeBlockPos(zone.min());
+				buf.writeBlockPos(zone.max());
+			}
+		}
+
+		public static ZoneList readFromBuf(FriendlyByteBuf buf) {
+			int count = buf.readVarInt();
+			List<Zone> zones = new ArrayList<>(count);
+			for (int i = 0; i < count; i++) {
+				String name = buf.readUtf(64);
+				String dimension = buf.readUtf(128);
+				BlockPos min = buf.readBlockPos();
+				BlockPos max = buf.readBlockPos();
+				zones.add(new Zone(name, dimension, min, max));
+			}
+			return new ZoneList(zones);
 		}
 	}
 }

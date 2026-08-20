@@ -61,6 +61,7 @@ public class DisplayBlockEntity extends BlockEntity {
 	private static final String KEY_PLEX_MEDIA = "PlexMediaIdx";
 	private static final String KEY_PLEX_PART = "PlexPartIdx";
 	private static final String KEY_PLEX_PART_KEY = "PlexPartKey";
+	private static final String KEY_ZONE_ID = "ZoneId";
 
 	public static final int MAX_STREAM_URL = 2048;
 	public static final int MAX_OVERVIEW = 1024;
@@ -107,6 +108,7 @@ public class DisplayBlockEntity extends BlockEntity {
 	private int plexMediaIndex;
 	private int plexPartIndex;
 	private String plexPartKey = "";
+	private String zoneId = "";
 
 	public DisplayBlockEntity(BlockPos pos, BlockState state) {
 		super(ModBlockEntities.DISPLAY, pos, state);
@@ -596,6 +598,18 @@ public class DisplayBlockEntity extends BlockEntity {
 		}
 	}
 
+	public String getZoneId() {
+		return this.zoneId;
+	}
+
+	public void setZoneId(String zoneId) {
+		String clamped = clampLength(zoneId, Channel.MAX_TEXT);
+		if (!this.zoneId.equals(clamped)) {
+			this.zoneId = clamped;
+			this.markDirtyAndSync();
+		}
+	}
+
 	public void setLastPlaybackProblem(@Nullable String problem) {
 		this.lastPlaybackProblem = problem;
 	}
@@ -717,6 +731,7 @@ public class DisplayBlockEntity extends BlockEntity {
 		output.putInt(KEY_PLEX_MEDIA, this.plexMediaIndex);
 		output.putInt(KEY_PLEX_PART, this.plexPartIndex);
 		output.putString(KEY_PLEX_PART_KEY, this.plexPartKey);
+		output.putString(KEY_ZONE_ID, this.zoneId);
 	}
 
 	@Override
@@ -759,6 +774,7 @@ public class DisplayBlockEntity extends BlockEntity {
 		this.plexMediaIndex = Math.max(0, input.contains(KEY_PLEX_MEDIA) ? input.getInt(KEY_PLEX_MEDIA) : 0);
 		this.plexPartIndex = Math.max(0, input.contains(KEY_PLEX_PART) ? input.getInt(KEY_PLEX_PART) : 0);
 		this.plexPartKey = clampLength(input.contains(KEY_PLEX_PART_KEY) ? input.getString(KEY_PLEX_PART_KEY) : "", MAX_STREAM_URL);
+		this.zoneId = clampLength(input.contains(KEY_ZONE_ID) ? input.getString(KEY_ZONE_ID) : "", Channel.MAX_TEXT);
 	}
 
 	private static JellyfinItemKind parseKind(String raw) {

@@ -11,8 +11,10 @@ import com.pixelreel.registry.ModBlockEntities;
 import com.pixelreel.registry.ModBlocks;
 import com.pixelreel.registry.ModCreativeTabs;
 import com.pixelreel.registry.ModItems;
+import com.pixelreel.zones.ZoneManager;
 import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
+import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
 import net.minecraft.resources.ResourceLocation;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -32,6 +34,7 @@ public class PixelReel implements ModInitializer {
 		TvCommand.register();
 		ServerLifecycleEvents.SERVER_STARTED.register(server -> {
 			LOGGER.info("pixelReel configuration file: {}", ConfigManager.path());
+			ZoneManager.INSTANCE.load();
 			ChannelService.INSTANCE.channels(false);
 			OnDemandCatalog.refreshConfigured(false);
 			MediaProxy.INSTANCE.start();
@@ -41,6 +44,9 @@ public class PixelReel implements ModInitializer {
 			ChannelService.INSTANCE.invalidateCache();
 			OnDemandCatalog.invalidateAll();
 		});
+		ServerPlayConnectionEvents.JOIN.register((handler, sender, server) ->
+			ServerNetworking.sendZoneList(handler.getPlayer())
+		);
 		LOGGER.info("pixelReel initialised");
 	}
 

@@ -17,6 +17,8 @@ import com.pixelreel.networking.ScreenAction;
 import com.pixelreel.networking.ServerNetworking;
 import com.pixelreel.permissions.CinemaPermissions;
 import com.pixelreel.server.ScreenControllerLogic;
+import com.pixelreel.zones.Zone;
+import com.pixelreel.zones.ZoneManager;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
@@ -44,6 +46,7 @@ import org.jetbrains.annotations.Nullable;
 public final class TvCommand {
 	private static final int CHANNEL_LIST_LIMIT = 40;
 	private static final DateTimeFormatter GUIDE_TIME = DateTimeFormatter.ofPattern("HH:mm");
+	private static @Nullable BlockPos markPos;
 
 	private TvCommand() {
 	}
@@ -77,6 +80,17 @@ public final class TvCommand {
 				.then(Commands.literal("status").executes(TvCommand::jellyfinStatus))
 				.then(Commands.literal("refresh").executes(TvCommand::jellyfinRefresh))
 				.then(Commands.literal("configure").executes(TvCommand::jellyfinConfigure)))
+			.then(Commands.literal("zone")
+				.then(Commands.literal("status").executes(TvCommand::zoneStatus))
+				.then(Commands.literal("mark").executes(TvCommand::zoneMark))
+				.then(Commands.literal("set")
+					.then(Commands.argument("name", StringArgumentType.word()).executes(TvCommand::zoneSet)))
+				.then(Commands.literal("claim")
+					.then(Commands.argument("name", StringArgumentType.word()).executes(TvCommand::zoneClaim)))
+				.then(Commands.literal("here").executes(TvCommand::zoneHere))
+				.then(Commands.literal("clear").executes(TvCommand::zoneClear))
+				.then(Commands.literal("cancel").executes(TvCommand::zoneCancel))
+				.then(Commands.literal("list").executes(TvCommand::zoneList)))
 			.executes(TvCommand::status);
 		dispatcher.register(tv);
 	}
@@ -437,6 +451,174 @@ public final class TvCommand {
 		int placed = DisplayBlock.placePanels(display.getLevel(), display.getBlockPos(), block.type(), display.facing(), false);
 		source.sendSuccess(() -> Component.translatable("command.pixelreel.rebuild.done", placed).withStyle(ChatFormatting.GREEN), false);
 		return 1;
+	}
+
+	private static int zoneStatus(CommandContext<CommandSourceStack> context) {
+		CommandSourceStack source = context.getSource();
+		ServerPlayer player = source.getPlayer();
+		if (player == null) {
+			source.sendFailure(Component.translatable("command.pixelreel.players_only"));
+			return 0;
+		}
+		String dimension = player.level().dimension().location().toString();
+		var zone = ZoneManager.INSTANCE.zoneAt(dimension, player.blockPosition());
+		if (zone.isPresent()) {
+			Zone z = zone.get();
+			source.sendSuccess(() -> Component.translatable("command.pixelreel.zone.status", z.name()).withStyle(ChatFormatting.GREEN), false);
+		source.sendSuccess(() -> Component.literal(" ").append(Component.translatable("command.pixelreel.zone.corners")
+				.withStyle(ChatFormatting.GRAY))
+				.append(Component.literal(" " + z.min().toShortString() + " → " + z.max().toShortString()).withStyle(ChatFormatting.WHITE)),
+				false);
+			int displays = countDisplaysInZone(z, player.level());
+			source.sendSuccess(() -> Component.literal(" ").append(Component.translatable("command.pixelreel.zone.displays", displays).withStyle(ChatFormatting.GRAY)), false);
+		} else {
+			source.sendSuccess(() -> Component.translatable("command.pixelreel.zone.no_zone").withStyle(ChatFormatting.YELLOW), false);
+		}
+		if (markPos != null) {
+			source.sendSuccess(() -> Component.translatable("command.pixelreel.zone.mark_pending", markPos.toShortString()).withStyle(ChatFormatting.AQUA), false);
+		}
+		return 1;
+	}
+
+	private static int zoneMark(CommandContext<CommandSourceStack> context) {
+		CommandSourceStack source = context.getSource();
+		ServerPlayer player = source.getPlayer();
+		if (player == null) {
+			source.sendFailure(Component.translatable("command.pixelreel.players_only"));
+			return 0;
+		}
+		markPos = player.blockPosition().immutable();
+		source.sendSuccess(() -> Component.translatable("command.pixelreel.zone.marked", markPos.toShortString()).withStyle(ChatFormatting.GREEN), false);
+		source.sendSuccess(() -> Component.translatable("command.pixelreel.zone.mark_hint").withStyle(ChatFormatting.GRAY), false);
+		return 1;
+	}
+
+	private static int zoneSet(CommandContext<CommandSourceStack> context) {
+		CommandSourceStack source = context.getSource();
+		ServerPlayer player = source.getPlayer();
+		if (player == null) {
+			source.sendFailure(Component.translatable("command.pixelreel.players_only"));
+			return 0;
+		}
+		if (markPos == null) {
+			source.sendFailure(Component.translatable("command.pixelreel.zone.mark_first"));
+			return 0;
+		}
+		String name = StringArgumentType.getString(context, "name").trim();
+		if (name.isEmpty() || name.length() > 32) {
+			source.sendFailure(Component.translatable("command.pixelreel.zone.name_invalid"));
+			return 0;
+		}
+		if (ZoneManager.INSTANCE.hasZone(name)) {
+			source.sendFailure(Component.translatable("command.pixelreel.zone.name_taken", name));
+			return 0;
+		}
+		String dimension = player.level().dimension().location().toString();
+		BlockPos corner2 = player.blockPosition().immutable();
+		Zone zone = new Zone(name, dimension, markPos, corner2);
+		ZoneManager.INSTANCE.addZone(zone);
+		ServerNetworking.broadcastZoneList(source.getServer());
+		markPos = null;
+		source.sendSuccess(() -> Component.translatable("command.pixelreel.zone.created", name, zone.volumeBlocks()).withStyle(ChatFormatting.GREEN), false);
+		return 1;
+	}
+
+	private static int zoneClaim(CommandContext<CommandSourceStack> context) {
+		CommandSourceStack source = context.getSource();
+		ServerPlayer player = source.getPlayer();
+		if (player == null) {
+			source.sendFailure(Component.translatable("command.pixelreel.players_only"));
+			return 0;
+		}
+		String name = StringArgumentType.getString(context, "name").trim();
+		var zone = ZoneManager.INSTANCE.getZone(name);
+		if (zone.isEmpty()) {
+			source.sendFailure(Component.translatable("command.pixelreel.zone.not_found", name));
+			return 0;
+		}
+		DisplayBlockEntity display = lookedAtDisplay(source);
+		if (display == null) {
+			source.sendFailure(Component.translatable("command.pixelreel.no_screen_in_sight"));
+			return 0;
+		}
+		display.setZoneId(name);
+		source.sendSuccess(() -> Component.translatable("command.pixelreel.zone.claimed", name).withStyle(ChatFormatting.GREEN), false);
+		return 1;
+	}
+
+	private static int zoneHere(CommandContext<CommandSourceStack> context) {
+		CommandSourceStack source = context.getSource();
+		ServerPlayer player = source.getPlayer();
+		if (player == null) {
+			source.sendFailure(Component.translatable("command.pixelreel.players_only"));
+			return 0;
+		}
+		DisplayBlockEntity display = lookedAtDisplay(source);
+		if (display == null) {
+			source.sendFailure(Component.translatable("command.pixelreel.no_screen_in_sight"));
+			return 0;
+		}
+		String dimension = player.level().dimension().location().toString();
+		var zone = ZoneManager.INSTANCE.zoneAt(dimension, display.getBlockPos());
+		if (zone.isEmpty()) {
+			source.sendFailure(Component.translatable("command.pixelreel.zone.display_not_in_zone"));
+			return 0;
+		}
+		display.setZoneId(zone.get().name());
+		source.sendSuccess(() -> Component.translatable("command.pixelreel.zone.claimed", zone.get().name()).withStyle(ChatFormatting.GREEN), false);
+		return 1;
+	}
+
+	private static int zoneClear(CommandContext<CommandSourceStack> context) {
+		CommandSourceStack source = context.getSource();
+		int count = ZoneManager.INSTANCE.allZones().size();
+		ZoneManager.INSTANCE.clearAll();
+		ServerNetworking.broadcastZoneList(source.getServer());
+		source.sendSuccess(() -> Component.translatable("command.pixelreel.zone.cleared", count).withStyle(ChatFormatting.GREEN), false);
+		return 1;
+	}
+
+	private static int zoneCancel(CommandContext<CommandSourceStack> context) {
+		CommandSourceStack source = context.getSource();
+		if (markPos != null) {
+			markPos = null;
+			source.sendSuccess(() -> Component.translatable("command.pixelreel.zone.cancelled").withStyle(ChatFormatting.YELLOW), false);
+		} else {
+			source.sendSuccess(() -> Component.translatable("command.pixelreel.zone.nothing_to_cancel").withStyle(ChatFormatting.GRAY), false);
+		}
+		return 1;
+	}
+
+	private static int zoneList(CommandContext<CommandSourceStack> context) {
+		CommandSourceStack source = context.getSource();
+		List<Zone> zones = ZoneManager.INSTANCE.allZones();
+		if (zones.isEmpty()) {
+			source.sendSuccess(() -> Component.translatable("command.pixelreel.zone.none").withStyle(ChatFormatting.GRAY), false);
+			return 1;
+		}
+		source.sendSuccess(() -> Component.translatable("command.pixelreel.zone.list_header", zones.size()).withStyle(ChatFormatting.AQUA), false);
+		for (Zone zone : zones) {
+			String dimension = zone.dimension().substring(zone.dimension().lastIndexOf('/') + 1);
+			source.sendSuccess(() -> Component.literal(" ").append(Component.literal(zone.name()).withStyle(ChatFormatting.GOLD))
+				.append(Component.literal(" (" + dimension + ", " + zone.volumeBlocks() + " blocks)").withStyle(ChatFormatting.GRAY)),
+				false);
+		}
+		return 1;
+	}
+
+	private static int countDisplaysInZone(Zone zone, @Nullable net.minecraft.world.level.Level level) {
+		if (level == null) {
+			return 0;
+		}
+		int count = 0;
+		for (BlockPos pos : BlockPos.betweenClosed(zone.min(), zone.max())) {
+			if (level.getBlockEntity(pos) instanceof DisplayBlockEntity display) {
+				if (zone.name().equals(display.getZoneId())) {
+					count++;
+				}
+			}
+		}
+		return count;
 	}
 
 	private static @Nullable DisplayBlockEntity lookedAtDisplay(CommandSourceStack source) {

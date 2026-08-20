@@ -3,6 +3,7 @@ package com.pixelreel.client.playback;
 import com.pixelreel.PixelReel;
 import com.pixelreel.blockentities.DisplayBlockEntity;
 import com.pixelreel.client.ClientNetworking;
+import com.pixelreel.client.ClientZoneCache;
 import com.pixelreel.client.playback.video.VideoTexture;
 import com.pixelreel.config.ConfigManager;
 import com.pixelreel.config.PixelReelConfig;
@@ -253,6 +254,9 @@ public final class PlaybackManager {
 			double normalized = glasses ? 1.0 : softDistanceGain(distance, audioRange);
 			float gain = (float)(volume * globalVolume * normalized);
 			if (display.isOnDemand() && display.isPlaybackPaused()) {
+				gain = 0.0F;
+			}
+			if (!ClientZoneCache.INSTANCE.isDisplayInPlayerZone(display)) {
 				gain = 0.0F;
 			}
 			if (refreshAudio) {

@@ -121,7 +121,7 @@ public final class PixelReelConfig {
 		copy.permissionConfigurePlex = normalizePermission(this.permissionConfigurePlex, "op");
 		copy.permissionRefreshLibrary = normalizePermission(this.permissionRefreshLibrary, "op");
 		copy.globalTvVolume = clamp(this.globalTvVolume, 0.0, 2.0, 1.5);
-		copy.maxSimultaneousChannels = clamp(this.maxSimultaneousChannels, 1, 4, 2);
+		copy.maxSimultaneousChannels = clamp(this.maxSimultaneousChannels, 1, 256, 2);
 		copy.artworkCacheLocation = this.artworkCacheLocation == null || this.artworkCacheLocation.isBlank()
 			? "pixelreel-cache"
 			: this.artworkCacheLocation.trim();

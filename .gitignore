@@ -38,4 +38,4 @@ replay_*.log
 
 # secrets
 .env
-.env.*
+.env.*com/
