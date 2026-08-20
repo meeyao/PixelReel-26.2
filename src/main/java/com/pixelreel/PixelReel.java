@@ -3,6 +3,7 @@ package com.pixelreel;
 import com.pixelreel.channels.ChannelService;
 import com.pixelreel.commands.TvCommand;
 import com.pixelreel.config.ConfigManager;
+import com.pixelreel.networking.MediaProxy;
 import com.pixelreel.networking.ModNetworkPayloads;
 import com.pixelreel.networking.ServerNetworking;
 import com.pixelreel.ondemand.OnDemandCatalog;
@@ -34,8 +35,10 @@ public class PixelReel implements ModInitializer {
 			LOGGER.info("pixelReel configuration file: {}", ConfigManager.path());
 			ChannelService.INSTANCE.channels(false);
 			OnDemandCatalog.refreshConfigured(false);
+			MediaProxy.INSTANCE.start();
 		});
 		ServerLifecycleEvents.SERVER_STOPPED.register(server -> {
+			MediaProxy.INSTANCE.stop();
 			ChannelService.INSTANCE.invalidateCache();
 			OnDemandCatalog.invalidateAll();
 		});
