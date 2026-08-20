@@ -5,11 +5,9 @@ import com.pixelreel.blocks.DisplayBlock;
 import com.pixelreel.blocks.DisplayType;
 import com.pixelreel.blocks.ScreenPanelBlock;
 import java.util.List;
-import java.util.function.Function;
-import net.minecraft.core.registries.Registries;
-import net.minecraft.resources.ResourceKey;
+import net.minecraft.core.Registry;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.world.level.block.Block;
-import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.SoundType;
 import net.minecraft.world.level.block.state.BlockBehaviour;
 import net.minecraft.world.level.material.MapColor;
@@ -31,37 +29,29 @@ public final class ModBlocks {
 	}
 
 	private static DisplayBlock registerDisplay(DisplayType type) {
-		ResourceKey<Block> key = ResourceKey.create(Registries.BLOCK, PixelReel.id(type.id()));
 		BlockBehaviour.Properties properties = BlockBehaviour.Properties.of()
 			.mapColor(MapColor.COLOR_BLACK)
 			.strength(1.5F, 6.0F)
 			.sound(SoundType.METAL)
 			.noOcclusion()
-			.forceSolidOff()
 			.pushReaction(PushReaction.BLOCK)
 			.isRedstoneConductor((state, level, pos) -> false)
 			.isSuffocating((state, level, pos) -> false)
 			.isViewBlocking((state, level, pos) -> false);
-			// No block lightLevel — that lit the grass/floor under the screen.
-			// The picture stays bright via fullbright/emissive rendering on the BER only.
-		Function<BlockBehaviour.Properties, Block> factory = props -> new DisplayBlock(props, type);
-		return (DisplayBlock)Blocks.register(key, factory, properties);
+		return Registry.register(BuiltInRegistries.BLOCK, PixelReel.id(type.id()), new DisplayBlock(properties, type));
 	}
 
 	private static ScreenPanelBlock registerPanel() {
-		ResourceKey<Block> key = ResourceKey.create(Registries.BLOCK, PixelReel.id("screen_panel"));
 		BlockBehaviour.Properties properties = BlockBehaviour.Properties.of()
 			.mapColor(MapColor.NONE)
 			.strength(-1.0F, 3600000.0F)
 			.noOcclusion()
-			.forceSolidOff()
 			.pushReaction(PushReaction.BLOCK)
 			.noLootTable()
 			.isRedstoneConductor((state, level, pos) -> false)
 			.isSuffocating((state, level, pos) -> false)
 			.isViewBlocking((state, level, pos) -> false);
-		Function<BlockBehaviour.Properties, Block> factory = props -> new ScreenPanelBlock(props);
-		return (ScreenPanelBlock)Blocks.register(key, factory, properties);
+		return Registry.register(BuiltInRegistries.BLOCK, PixelReel.id("screen_panel"), new ScreenPanelBlock(properties));
 	}
 
 	public static void init() {

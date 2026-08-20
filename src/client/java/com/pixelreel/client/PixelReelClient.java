@@ -3,7 +3,6 @@ package com.pixelreel.client;
 import com.pixelreel.ClientBridge;
 import com.pixelreel.blockentities.DisplayBlockEntity;
 import com.pixelreel.blocks.DisplayBlock;
-import com.pixelreel.PixelReel;
 import com.pixelreel.client.playback.PlaybackManager;
 import com.pixelreel.client.playback.video.VlcRuntime;
 import com.pixelreel.client.render.DisplayBlockEntityRenderer;
@@ -14,7 +13,7 @@ import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
-import net.fabricmc.fabric.api.client.rendering.v1.hud.HudElementRegistry;
+import net.fabricmc.fabric.api.client.rendering.v1.HudRenderCallback;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.blockentity.BlockEntityRenderers;
 import net.minecraft.core.BlockPos;
@@ -29,8 +28,7 @@ public class PixelReelClient implements ClientModInitializer {
 		ClientNetworking.register();
 		GlassesControls.register();
 		BlockEntityRenderers.register(ModBlockEntities.DISPLAY, DisplayBlockEntityRenderer::new);
-		// Draw above the world / misc overlays so glasses take over the view.
-		HudElementRegistry.addLast(PixelReel.id("pixel_glasses"), GlassesOverlay::extract);
+		HudRenderCallback.EVENT.register(GlassesOverlay::render);
 
 		ClientBridge.setHandler(new ClientBridge.Handler() {
 			@Override
@@ -46,6 +44,7 @@ public class PixelReelClient implements ClientModInitializer {
 
 		ClientTickEvents.END_CLIENT_TICK.register(minecraft -> {
 			PlaybackManager.INSTANCE.clientTick();
+			PosterCache.INSTANCE.clientTick();
 			tickAutoplayPrompt(minecraft);
 		});
 
@@ -53,7 +52,6 @@ public class PixelReelClient implements ClientModInitializer {
 			PlaybackManager.INSTANCE.releaseAll();
 			ClientChannelCache.INSTANCE.clear();
 			ClientMediaCache.INSTANCE.clear();
-			ClientPosterUrlCache.INSTANCE.clear();
 		});
 
 		ClientLifecycleEvents.CLIENT_STOPPING.register(minecraft -> {
@@ -64,7 +62,7 @@ public class PixelReelClient implements ClientModInitializer {
 	}
 
 	private static void tickAutoplayPrompt(Minecraft minecraft) {
-		if (minecraft.player == null || minecraft.level == null || minecraft.gui.screen() != null) {
+		if (minecraft.player == null || minecraft.level == null || minecraft.screen != null) {
 			return;
 		}
 		if (minecraft.player.tickCount % 20 != 0) {
@@ -79,8 +77,9 @@ public class PixelReelClient implements ClientModInitializer {
 			return;
 		}
 		long remaining = Math.max(0L, (display.getAutoplayAtMillis() - System.currentTimeMillis() + 999L) / 1000L);
-		minecraft.player.sendOverlayMessage(
-			Component.translatable("gui.pixelreel.playback.next_overlay", display.getNextEpisodeTitle(), remaining)
+		minecraft.player.displayClientMessage(
+			Component.translatable("gui.pixelreel.playback.next_overlay", display.getNextEpisodeTitle(), remaining),
+			true
 		);
 	}
 }

@@ -7,7 +7,7 @@ import com.pixelreel.networking.ModNetworkPayloads;
 import com.pixelreel.ondemand.OnDemandProvider;
 import java.util.List;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
@@ -36,10 +36,10 @@ public class ProviderPickerScreen extends Screen {
 			return;
 		}
 		if (providers.size() == 1) {
-			minecraft.gui.setScreen(new OnDemandBrowseScreen(display, kind, providers.get(0)));
+			minecraft.setScreen(new OnDemandBrowseScreen(display, kind, providers.get(0)));
 			return;
 		}
-		minecraft.gui.setScreen(new ProviderPickerScreen(display, kind, providers));
+		minecraft.setScreen(new ProviderPickerScreen(display, kind, providers));
 	}
 
 	@Override
@@ -50,7 +50,7 @@ public class ProviderPickerScreen extends Screen {
 			this.addRenderableWidget(
 				Button.builder(Component.literal(provider.displayName()), button -> {
 					if (this.minecraft != null) {
-						this.minecraft.gui.setScreen(new OnDemandBrowseScreen(this.display, this.kind, provider));
+						this.minecraft.setScreen(new OnDemandBrowseScreen(this.display, this.kind, provider));
 					}
 				}).bounds(centreX - 100, y, 200, 24).build()
 			);
@@ -59,17 +59,17 @@ public class ProviderPickerScreen extends Screen {
 		this.addRenderableWidget(
 			Button.builder(Component.translatable("gui.pixelreel.jellyfin.back"), button -> {
 				if (this.minecraft != null) {
-					this.minecraft.gui.setScreen(new MediaSourceScreen(this.display));
+					this.minecraft.setScreen(new MediaSourceScreen(this.display));
 				}
 			}).bounds(centreX - 40, this.height / 2 + 80, 80, 20).build()
 		);
 	}
 
 	@Override
-	public void extractRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTicks) {
-		super.extractRenderState(graphics, mouseX, mouseY, partialTicks);
-		graphics.centeredText(this.font, this.title, this.width / 2, this.height / 2 - 70, GuiColors.TEXT);
-		graphics.centeredText(
+	public void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTicks) {
+		super.render(graphics, mouseX, mouseY, partialTicks);
+		graphics.drawCenteredString(this.font, this.title, this.width / 2, this.height / 2 - 70, GuiColors.TEXT);
+		graphics.drawCenteredString(
 			this.font,
 			Component.translatable("gui.pixelreel.provider.subtitle"),
 			this.width / 2,

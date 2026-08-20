@@ -10,12 +10,12 @@ import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
-import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
-import org.jspecify.annotations.Nullable;
+import org.jetbrains.annotations.Nullable;
 
 /** Plex configuration */
 public class PlexConfigScreen extends Screen {
@@ -69,7 +69,7 @@ public class PlexConfigScreen extends Screen {
 		this.addRenderableWidget(
 			Button.builder(Component.translatable("gui.pixelreel.jellyfin.back"), button -> {
 				if (this.minecraft != null) {
-					this.minecraft.gui.setScreen(this.parent);
+					this.minecraft.setScreen(this.parent);
 				}
 			}).bounds(this.width / 2 + 10, this.height - 28, 100, 20).build()
 		);
@@ -129,14 +129,14 @@ public class PlexConfigScreen extends Screen {
 	}
 
 	@Override
-	public void extractRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTicks) {
-		super.extractRenderState(graphics, mouseX, mouseY, partialTicks);
-		graphics.centeredText(this.font, this.title, this.width / 2, 12, GuiColors.TEXT);
-		graphics.centeredText(this.font, Component.translatable("gui.pixelreel.plex.config.subtitle"), this.width / 2, 24, GuiColors.TEXT_DIM);
+	public void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTicks) {
+		super.render(graphics, mouseX, mouseY, partialTicks);
+		graphics.drawCenteredString(this.font, this.title, this.width / 2, 12, GuiColors.TEXT);
+		graphics.drawCenteredString(this.font, Component.translatable("gui.pixelreel.plex.config.subtitle"), this.width / 2, 24, GuiColors.TEXT_DIM);
 		ModNetworkPayloads.PlexConfigData data = ClientMediaCache.INSTANCE.plexConfigData();
 		if (data != null) {
 			int color = data.status().authenticated() ? GuiColors.TEXT_DIM : GuiColors.ERROR;
-			graphics.centeredText(
+			graphics.drawCenteredString(
 				this.font,
 				Component.literal(data.status().detail()),
 				this.width / 2,

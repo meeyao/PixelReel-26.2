@@ -2,15 +2,12 @@ package com.pixelreel.registry;
 
 import com.pixelreel.PixelReel;
 import com.pixelreel.blocks.DisplayBlock;
-import com.pixelreel.items.PixelGlassesItem;
 import com.pixelreel.items.DisplayBlockItem;
+import com.pixelreel.items.PixelGlassesItem;
 import java.util.List;
 import java.util.function.Function;
 import net.minecraft.core.Registry;
 import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.core.registries.Registries;
-import net.minecraft.resources.ResourceKey;
-import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.Item;
 
@@ -23,9 +20,8 @@ public final class ModItems {
 	public static final Item PIXEL_GLASSES = register(
 		"pixel_glasses",
 		PixelGlassesItem::new,
-		// Unswappable so vanilla equippable right-click swap (creative-dupey) is not used;
-		// PixelGlassesItem.use() handles equip/unequip instead.
-		new Item.Properties().stacksTo(1).equippableUnswappable(EquipmentSlot.HEAD)
+		// PixelGlassesItem.use() handles equip/unequip to avoid creative-dupe swap behaviour.
+		new Item.Properties().stacksTo(1)
 	);
 
 	public static final List<Item> TAB_CONTENTS = List.of(
@@ -37,16 +33,15 @@ public final class ModItems {
 
 	private static Item registerDisplayItem(DisplayBlock block, String tooltipKey) {
 		String name = BuiltInRegistries.BLOCK.getKey(block).getPath();
-		return register(name, properties -> new DisplayBlockItem(block, properties, tooltipKey), new Item.Properties().useBlockDescriptionPrefix());
+		return register(name, properties -> new DisplayBlockItem(block, properties, tooltipKey), new Item.Properties());
 	}
 
 	private static Item register(String name, Function<Item.Properties, Item> factory, Item.Properties properties) {
-		ResourceKey<Item> key = ResourceKey.create(Registries.ITEM, PixelReel.id(name));
-		Item item = factory.apply(properties.setId(key));
+		Item item = factory.apply(properties);
 		if (item instanceof BlockItem blockItem) {
-			blockItem.registerBlocks(Item.BY_BLOCK, item);
+			Item.BY_BLOCK.put(blockItem.getBlock(), item);
 		}
-		return Registry.register(BuiltInRegistries.ITEM, key, item);
+		return Registry.register(BuiltInRegistries.ITEM, PixelReel.id(name), item);
 	}
 
 	public static void init() {

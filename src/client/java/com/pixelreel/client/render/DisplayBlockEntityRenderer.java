@@ -9,26 +9,23 @@ import com.pixelreel.blocks.DisplayBlock;
 import com.pixelreel.blocks.DisplayType;
 import com.pixelreel.client.playback.PlaybackManager;
 import com.pixelreel.client.playback.PlaybackStatus;
-import net.minecraft.client.renderer.SubmitNodeCollector;
+import net.minecraft.client.renderer.MultiBufferSource;
+import net.minecraft.client.renderer.RenderType;
 import net.minecraft.client.renderer.blockentity.BlockEntityRenderer;
 import net.minecraft.client.renderer.blockentity.BlockEntityRendererProvider;
-import net.minecraft.client.renderer.feature.ModelFeatureRenderer;
-import net.minecraft.client.renderer.rendertype.RenderType;
-import net.minecraft.client.renderer.rendertype.RenderTypes;
-import net.minecraft.client.renderer.state.level.CameraRenderState;
 import net.minecraft.client.renderer.texture.OverlayTexture;
-import net.minecraft.world.phys.Vec3;
-import org.jspecify.annotations.Nullable;
+import net.minecraft.core.Direction;
+import net.minecraft.resources.ResourceLocation;
 
 /** this is the what the screen looks like this is pretty cool i know */
 
-public class DisplayBlockEntityRenderer implements BlockEntityRenderer<DisplayBlockEntity, DisplayRenderState> {
-	private static final net.minecraft.resources.Identifier SCREEN_OFF = PixelReel.id("textures/block/screen_off.png");
-	private static final net.minecraft.resources.Identifier CONNECTING = PixelReel.id("textures/block/screen_connecting.png");
-	private static final net.minecraft.resources.Identifier ERROR = PixelReel.id("textures/block/screen_error.png");
-	private static final net.minecraft.resources.Identifier NO_SIGNAL = PixelReel.id("textures/block/screen_no_signal.png");
-	private static final net.minecraft.resources.Identifier NO_PLAYER = PixelReel.id("textures/block/screen_no_player.png");
-	private static final net.minecraft.resources.Identifier BACKING = PixelReel.id("textures/block/tv_body.png");
+public class DisplayBlockEntityRenderer implements BlockEntityRenderer<DisplayBlockEntity> {
+	private static final ResourceLocation SCREEN_OFF = PixelReel.id("textures/block/screen_off.png");
+	private static final ResourceLocation CONNECTING = PixelReel.id("textures/block/screen_connecting.png");
+	private static final ResourceLocation ERROR = PixelReel.id("textures/block/screen_error.png");
+	private static final ResourceLocation NO_SIGNAL = PixelReel.id("textures/block/screen_no_signal.png");
+	private static final ResourceLocation NO_PLAYER = PixelReel.id("textures/block/screen_no_player.png");
+	private static final ResourceLocation BACKING = PixelReel.id("textures/block/tv_body.png");
 
 	private static final float STATUS_ASPECT = 2.0F;
 	private static final int PICTURE_LIGHT = 0xF000F0;
@@ -42,91 +39,80 @@ public class DisplayBlockEntityRenderer implements BlockEntityRenderer<DisplayBl
 	}
 
 	@Override
-	public DisplayRenderState createRenderState() {
-		return new DisplayRenderState();
-	}
-
-	@Override
-	public void extractRenderState(
+	public void render(
 		DisplayBlockEntity blockEntity,
-		DisplayRenderState state,
 		float partialTicks,
-		Vec3 cameraPosition,
-		ModelFeatureRenderer.@Nullable CrumblingOverlay breakProgress
+		PoseStack poseStack,
+		MultiBufferSource bufferSource,
+		int packedLight,
+		int packedOverlay
 	) {
-		BlockEntityRenderer.super.extractRenderState(blockEntity, state, partialTicks, cameraPosition, breakProgress);
 		DisplayBlock block = blockEntity.displayBlock();
-		state.type = block == null ? null : block.type();
-		state.facing = blockEntity.facing();
-		state.pictureTexture = null;
-		state.pictureAspect = 0.0F;
-		state.contentU0 = 0.0F;
-		state.contentV0 = 0.0F;
-		state.contentU1 = 1.0F;
-		state.contentV1 = 1.0F;
-		if (state.type == null || !blockEntity.isPowered() || blockEntity.isSuspended()) {
-			return;
-		}
-		if (!blockEntity.hasChannel()) {
-			state.pictureTexture = NO_SIGNAL;
-			state.pictureAspect = STATUS_ASPECT;
-			return;
-		}
-		PlaybackManager.PictureHandle picture = PlaybackManager.INSTANCE.pictureFor(blockEntity);
-		if (picture != null) {
-			state.pictureTexture = picture.textureId();
-			state.pictureAspect = picture.aspect();
-			state.contentU0 = picture.u0();
-			state.contentV0 = picture.v0();
-			state.contentU1 = picture.u1();
-			state.contentV1 = picture.v1();
-			return;
-		}
-		PlaybackStatus status = PlaybackManager.INSTANCE.statusFor(blockEntity);
-		state.pictureAspect = STATUS_ASPECT;
-		state.pictureTexture = switch (status == null ? PlaybackStatus.CONNECTING : status) {
-			case UNAVAILABLE -> NO_PLAYER;
-			case ERROR, ENDED -> ERROR;
-			case CONNECTING, BUFFERING, PLAYING -> CONNECTING;
-			case IDLE -> CONNECTING;
-		};
-	}
-
-	@Override
-	public void submit(DisplayRenderState state, PoseStack poseStack, SubmitNodeCollector collector, CameraRenderState camera) {
-		DisplayType type = state.type;
+		DisplayType type = block == null ? null : block.type();
 		if (type == null) {
 			return;
 		}
+		Direction facing = blockEntity.facing();
+
+		ResourceLocation pictureTexture = null;
+		float pictureAspect = 0.0F;
+		float contentU0 = 0.0F;
+		float contentV0 = 0.0F;
+		float contentU1 = 1.0F;
+		float contentV1 = 1.0F;
+		if (blockEntity.isPowered() && !blockEntity.isSuspended()) {
+			if (!blockEntity.hasChannel()) {
+				pictureTexture = NO_SIGNAL;
+				pictureAspect = STATUS_ASPECT;
+			} else {
+				PlaybackManager.PictureHandle picture = PlaybackManager.INSTANCE.pictureFor(blockEntity);
+				if (picture != null) {
+					pictureTexture = picture.textureId();
+					pictureAspect = picture.aspect();
+					contentU0 = picture.u0();
+					contentV0 = picture.v0();
+					contentU1 = picture.u1();
+					contentV1 = picture.v1();
+				} else {
+					PlaybackStatus status = PlaybackManager.INSTANCE.statusFor(blockEntity);
+					pictureAspect = STATUS_ASPECT;
+					pictureTexture = switch (status == null ? PlaybackStatus.CONNECTING : status) {
+						case UNAVAILABLE -> NO_PLAYER;
+						case ERROR, ENDED -> ERROR;
+						case CONNECTING, BUFFERING, PLAYING, IDLE -> CONNECTING;
+					};
+				}
+			}
+		}
+
 		poseStack.pushPose();
 		poseStack.translate(0.5F, 0.5F, 0.5F);
-		poseStack.mulPose(Axis.YP.rotationDegrees(180.0F - state.facing.toYRot()));
+		poseStack.mulPose(Axis.YP.rotationDegrees(180.0F - facing.toYRot()));
 		poseStack.translate(-0.5F, -0.5F, -0.5F);
 
 		Sheet screen = new Sheet(type.screenLeft(), type.screenBottom(), type.screenRight(), type.screenTop());
-		int bodyLight = state.lightCoords;
-		submitSheet(type, screen, BACKING, BACKING_BIAS, false, bodyLight, poseStack, collector);
-		submitSheet(type, screen, BACKING, BACK_FACE_BIAS, true, bodyLight, poseStack, collector);
-		submitSheet(type, screen, SCREEN_OFF, SCREEN_BIAS, false, bodyLight, poseStack, collector);
+		submitSheet(type, screen, BACKING, BACKING_BIAS, false, packedLight, poseStack, bufferSource);
+		submitSheet(type, screen, BACKING, BACK_FACE_BIAS, true, packedLight, poseStack, bufferSource);
+		submitSheet(type, screen, SCREEN_OFF, SCREEN_BIAS, false, packedLight, poseStack, bufferSource);
 
-		if (state.pictureTexture != null) {
-			boolean statusGraphic = Math.abs(state.pictureAspect - STATUS_ASPECT) < 0.001F;
+		if (pictureTexture != null) {
+			boolean statusGraphic = Math.abs(pictureAspect - STATUS_ASPECT) < 0.001F;
 			FittedPicture fitted = statusGraphic
 				? FittedPicture.full(screen)
-				: containContent(type, screen, state.pictureAspect);
-			float u0 = lerp(state.contentU0, state.contentU1, fitted.uMin());
-			float u1 = lerp(state.contentU0, state.contentU1, fitted.uMax());
-			float v0 = lerp(state.contentV0, state.contentV1, fitted.vMin());
-			float v1 = lerp(state.contentV0, state.contentV1, fitted.vMax());
+				: containContent(type, screen, pictureAspect);
+			float u0 = lerp(contentU0, contentU1, fitted.uMin());
+			float u1 = lerp(contentU0, contentU1, fitted.uMax());
+			float v0 = lerp(contentV0, contentV1, fitted.vMin());
+			float v1 = lerp(contentV0, contentV1, fitted.vMax());
 			submitSheet(
 				type,
 				fitted.sheet(),
-				state.pictureTexture,
+				pictureTexture,
 				PICTURE_BIAS,
 				false,
 				PICTURE_LIGHT,
 				poseStack,
-				collector,
+				bufferSource,
 				u0,
 				u1,
 				v0,
@@ -166,25 +152,25 @@ public class DisplayBlockEntityRenderer implements BlockEntityRenderer<DisplayBl
 	private static void submitSheet(
 		DisplayType type,
 		Sheet sheet,
-		net.minecraft.resources.Identifier texture,
+		ResourceLocation texture,
 		float bias,
 		boolean backFace,
 		int packedLight,
 		PoseStack poseStack,
-		SubmitNodeCollector collector
+		MultiBufferSource bufferSource
 	) {
-		submitSheet(type, sheet, texture, bias, backFace, packedLight, poseStack, collector, 0.0F, 1.0F, 0.0F, 1.0F);
+		submitSheet(type, sheet, texture, bias, backFace, packedLight, poseStack, bufferSource, 0.0F, 1.0F, 0.0F, 1.0F);
 	}
 
 	private static void submitSheet(
 		DisplayType type,
 		Sheet sheet,
-		net.minecraft.resources.Identifier texture,
+		ResourceLocation texture,
 		float bias,
 		boolean backFace,
 		int packedLight,
 		PoseStack poseStack,
-		SubmitNodeCollector collector,
+		MultiBufferSource bufferSource,
 		float uMin,
 		float uMax,
 		float vMin,
@@ -193,12 +179,8 @@ public class DisplayBlockEntityRenderer implements BlockEntityRenderer<DisplayBl
 		if (sheet.width() <= 0.0F || sheet.height() <= 0.0F) {
 			return;
 		}
-		RenderType renderType = RenderTypes.entityCutout(texture);
-		collector.submitCustomGeometry(
-			poseStack,
-			renderType,
-			(pose, buffer) -> emit(pose, buffer, type, sheet, bias, backFace, packedLight, uMin, uMax, vMin, vMax)
-		);
+		VertexConsumer buffer = bufferSource.getBuffer(RenderType.entityCutout(texture));
+		emit(poseStack.last(), buffer, type, sheet, bias, backFace, packedLight, uMin, uMax, vMin, vMax);
 	}
 
 	private static void emit(
@@ -283,7 +265,7 @@ public class DisplayBlockEntityRenderer implements BlockEntityRenderer<DisplayBl
 	}
 
 	@Override
-	public boolean shouldRenderOffScreen() {
+	public boolean shouldRenderOffScreen(DisplayBlockEntity blockEntity) {
 		return true;
 	}
 

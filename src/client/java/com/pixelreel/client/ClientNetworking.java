@@ -35,7 +35,7 @@ public final class ClientNetworking {
 	public static void register() {
 		ClientPlayNetworking.registerGlobalReceiver(ModNetworkPayloads.ChannelList.TYPE, (payload, context) -> {
 			ClientChannelCache.INSTANCE.accept(payload.entries(), payload.status());
-			if (Minecraft.getInstance().gui.screen() instanceof ChannelMenuScreen menu) {
+			if (Minecraft.getInstance().screen instanceof ChannelMenuScreen menu) {
 				menu.onChannelsUpdated();
 			}
 		});
@@ -47,7 +47,7 @@ public final class ClientNetworking {
 		ClientPlayNetworking.registerGlobalReceiver(ModNetworkPayloads.ScreenNotice.TYPE, (payload, context) -> {
 			Minecraft minecraft = Minecraft.getInstance();
 			if (minecraft.player != null) {
-				minecraft.player.sendOverlayMessage(Component.translatable(payload.translationKey()));
+				minecraft.player.displayClientMessage(Component.translatable(payload.translationKey()), true);
 			}
 		});
 
@@ -59,24 +59,9 @@ public final class ClientNetworking {
 			printClientStatus(payload.pos())
 		);
 
-		ClientPlayNetworking.registerGlobalReceiver(ModNetworkPayloads.PlaybackUrl.TYPE, (payload, context) ->
-			PlaybackManager.INSTANCE.acceptPlaybackUrl(
-				payload.pos(),
-				payload.channelEpoch(),
-				payload.proxyPort(),
-				payload.proxyHost(),
-				payload.streamUrl(),
-				payload.subtitleUrl()
-			)
-		);
-
-		ClientPlayNetworking.registerGlobalReceiver(ModNetworkPayloads.PosterUrl.TYPE, (payload, context) ->
-			ClientPosterUrlCache.INSTANCE.accept(payload)
-		);
-
 		ClientPlayNetworking.registerGlobalReceiver(ModNetworkPayloads.MediaFeatures.TYPE, (payload, context) -> {
 			ClientMediaCache.INSTANCE.acceptFeatures(payload);
-			if (Minecraft.getInstance().gui.screen() instanceof MediaSourceScreen screen) {
+			if (Minecraft.getInstance().screen instanceof MediaSourceScreen screen) {
 				screen.onFeaturesUpdated();
 			}
 		});
@@ -90,14 +75,14 @@ public final class ClientNetworking {
 				return;
 			}
 			ClientMediaCache.INSTANCE.acceptBrowse(payload);
-			if (Minecraft.getInstance().gui.screen() instanceof OnDemandBrowseScreen screen) {
+			if (Minecraft.getInstance().screen instanceof OnDemandBrowseScreen screen) {
 				screen.onBrowseUpdated();
 			}
 		});
 
 		ClientPlayNetworking.registerGlobalReceiver(ModNetworkPayloads.JellyfinChildrenResult.TYPE, (payload, context) -> {
 			ClientMediaCache.INSTANCE.acceptChildren(payload);
-			var screen = Minecraft.getInstance().gui.screen();
+			var screen = Minecraft.getInstance().screen;
 			if (screen instanceof OnDemandSeriesScreen seriesScreen) {
 				seriesScreen.onChildrenUpdated();
 			} else if (screen instanceof OnDemandEpisodeScreen episodeScreen) {
@@ -109,28 +94,28 @@ public final class ClientNetworking {
 
 		ClientPlayNetworking.registerGlobalReceiver(ModNetworkPayloads.JellyfinConfigData.TYPE, (payload, context) -> {
 			ClientMediaCache.INSTANCE.acceptConfig(payload);
-			if (Minecraft.getInstance().gui.screen() instanceof JellyfinConfigScreen screen) {
+			if (Minecraft.getInstance().screen instanceof JellyfinConfigScreen screen) {
 				screen.onConfigUpdated();
 			}
 		});
 
 		ClientPlayNetworking.registerGlobalReceiver(ModNetworkPayloads.EmbyConfigData.TYPE, (payload, context) -> {
 			ClientMediaCache.INSTANCE.acceptEmbyConfig(payload);
-			if (Minecraft.getInstance().gui.screen() instanceof EmbyConfigScreen screen) {
+			if (Minecraft.getInstance().screen instanceof EmbyConfigScreen screen) {
 				screen.onConfigUpdated();
 			}
 		});
 
 		ClientPlayNetworking.registerGlobalReceiver(ModNetworkPayloads.PlexConfigData.TYPE, (payload, context) -> {
 			ClientMediaCache.INSTANCE.acceptPlexConfig(payload);
-			if (Minecraft.getInstance().gui.screen() instanceof PlexConfigScreen screen) {
+			if (Minecraft.getInstance().screen instanceof PlexConfigScreen screen) {
 				screen.onConfigUpdated();
 			}
 		});
 
 		ClientPlayNetworking.registerGlobalReceiver(ModNetworkPayloads.TunarrConfigData.TYPE, (payload, context) -> {
 			ClientMediaCache.INSTANCE.acceptTunarrConfig(payload);
-			if (Minecraft.getInstance().gui.screen() instanceof TunarrConfigScreen screen) {
+			if (Minecraft.getInstance().screen instanceof TunarrConfigScreen screen) {
 				screen.onConfigUpdated();
 			}
 		});
@@ -139,18 +124,6 @@ public final class ClientNetworking {
 	public static void requestChannels(boolean forceRefresh) {
 		if (ClientPlayNetworking.canSend(ModNetworkPayloads.RequestChannels.TYPE)) {
 			ClientPlayNetworking.send(new ModNetworkPayloads.RequestChannels(forceRefresh));
-		}
-	}
-
-	public static void requestPlaybackUrl(BlockPos pos, int channelEpoch) {
-		if (ClientPlayNetworking.canSend(ModNetworkPayloads.RequestPlaybackUrl.TYPE)) {
-			ClientPlayNetworking.send(new ModNetworkPayloads.RequestPlaybackUrl(pos, channelEpoch));
-		}
-	}
-
-	public static void requestPoster(OnDemandProvider provider, String itemId) {
-		if (ClientPlayNetworking.canSend(ModNetworkPayloads.RequestPoster.TYPE)) {
-			ClientPlayNetworking.send(new ModNetworkPayloads.RequestPoster(provider, itemId));
 		}
 	}
 
@@ -303,7 +276,7 @@ public final class ClientNetworking {
 		Minecraft minecraft = Minecraft.getInstance();
 		minecraft.execute(() -> {
 			if (minecraft.level != null && minecraft.level.getBlockEntity(pos) instanceof DisplayBlockEntity display) {
-				minecraft.gui.setScreen(new MediaSourceScreen(display));
+				minecraft.setScreen(new MediaSourceScreen(display));
 			}
 		});
 	}
@@ -316,7 +289,7 @@ public final class ClientNetworking {
 		if (!(minecraft.level.getBlockEntity(pos) instanceof DisplayBlockEntity display)) {
 			return;
 		}
-		ChannelPlayer player = PlaybackManager.INSTANCE.player(display);
+		ChannelPlayer player = PlaybackManager.INSTANCE.player(display.getStreamUrl());
 		if (player == null) {
 			minecraft.player.sendSystemMessage(Component.translatable("chat.pixelreel.status.player_idle"));
 			return;
@@ -329,7 +302,7 @@ public final class ClientNetworking {
 				"chat.pixelreel.status.player",
 				player.status().name(),
 				frame,
-				"authorized",
+				ChannelService.hostOnly(display.getStreamUrl()),
 				Math.round(player.bufferingProgress()) + "%",
 				player.errorDetail().isEmpty() ? "-" : player.errorDetail()
 			)

@@ -7,10 +7,9 @@ import java.time.Instant;
 import java.util.List;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.narration.NarrationElementOutput;
-import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.network.chat.Component;
 
 /** showing posters for live tv channels */
@@ -48,7 +47,7 @@ public class ChannelCardWidget extends AbstractWidget {
 	}
 
 	@Override
-	public void onClick(MouseButtonEvent event, boolean doubled) {
+	public void onClick(double mouseX, double mouseY) {
 		if (!this.entry.channel().isPlayable()) {
 			return;
 		}
@@ -56,13 +55,16 @@ public class ChannelCardWidget extends AbstractWidget {
 	}
 
 	@Override
-	protected void extractWidgetRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTicks) {
+	protected void renderWidget(GuiGraphics graphics, int mouseX, int mouseY, float partialTicks) {
 		int x = this.getX();
 		int y = this.getY();
 		boolean hovered = this.isHovered();
 		graphics.fill(x, y, x + CARD_WIDTH, y + CARD_HEIGHT, hovered ? COLOR_CARD_HOVER : COLOR_CARD);
 		if (this.selected) {
-			graphics.outline(x - 1, y - 1, CARD_WIDTH + 2, CARD_HEIGHT + 2, COLOR_SELECTED);
+			graphics.fill(x - 1, y - 1, x + CARD_WIDTH + 1, y, COLOR_SELECTED);
+			graphics.fill(x - 1, y + CARD_HEIGHT, x + CARD_WIDTH + 1, y + CARD_HEIGHT + 1, COLOR_SELECTED);
+			graphics.fill(x - 1, y, x, y + CARD_HEIGHT, COLOR_SELECTED);
+			graphics.fill(x + CARD_WIDTH, y, x + CARD_WIDTH + 1, y + CARD_HEIGHT, COLOR_SELECTED);
 		}
 
 		int thumbX = x + 3;
@@ -77,10 +79,10 @@ public class ChannelCardWidget extends AbstractWidget {
 			SharedPoster.blitCover(graphics, thumb, thumbX, thumbY, thumbWidth, thumbHeight);
 		} else if (thumb.state() == PosterCache.State.LOADING) {
 			SharedPoster.blitPlaceholder(graphics, PosterCache.PLACEHOLDER, thumbX, thumbY, thumbWidth, thumbHeight);
-			graphics.centeredText(font, Component.translatable("gui.pixelreel.menu.loading_art"), x + CARD_WIDTH / 2, thumbY + thumbHeight / 2 - 4, COLOR_TEXT_FAINT);
+			graphics.drawCenteredString(font, Component.translatable("gui.pixelreel.menu.loading_art"), x + CARD_WIDTH / 2, thumbY + thumbHeight / 2 - 4, COLOR_TEXT_FAINT);
 		} else {
 			SharedPoster.blitPlaceholder(graphics, PosterCache.PLACEHOLDER, thumbX, thumbY, thumbWidth, thumbHeight);
-			graphics.centeredText(
+			graphics.drawCenteredString(
 				font,
 				Component.literal(font.plainSubstrByWidth(this.entry.channel().name(), thumbWidth - 4)),
 				x + CARD_WIDTH / 2,
@@ -89,7 +91,7 @@ public class ChannelCardWidget extends AbstractWidget {
 			);
 		}
 		if (this.selected) {
-			graphics.text(font, Component.translatable("gui.pixelreel.menu.watching"), thumbX + 2, thumbY + 2, COLOR_SELECTED);
+			graphics.drawString(font, Component.translatable("gui.pixelreel.menu.watching"), thumbX + 2, thumbY + 2, COLOR_SELECTED);
 		}
 
 		long nowEpoch = Instant.now().getEpochSecond();
@@ -103,20 +105,20 @@ public class ChannelCardWidget extends AbstractWidget {
 		int textX = x + 4;
 		int textY = y + POSTER_HEIGHT + 4;
 		String nameLine = this.entry.channel().number() + "  " + this.entry.channel().name();
-		graphics.text(font, Component.literal(font.plainSubstrByWidth(nameLine, CARD_WIDTH - 8)), textX, textY, COLOR_TEXT);
+		graphics.drawString(font, Component.literal(font.plainSubstrByWidth(nameLine, CARD_WIDTH - 8)), textX, textY, COLOR_TEXT);
 		if (!this.entry.channel().isPlayable()) {
-			graphics.text(font, Component.translatable("gui.pixelreel.menu.channel_offline"), textX, textY + 11, COLOR_ERROR);
+			graphics.drawString(font, Component.translatable("gui.pixelreel.menu.channel_offline"), textX, textY + 11, COLOR_ERROR);
 		} else if (this.entry.guide().hasNow()) {
-			graphics.text(
+			graphics.drawString(
 				font,
 				Component.literal(font.plainSubstrByWidth("\u25B6 " + this.entry.guide().nowTitle(), CARD_WIDTH - 8)),
 				textX, textY + 11, COLOR_TEXT_DIM
 			);
 		} else {
-			graphics.text(font, Component.translatable("gui.pixelreel.menu.no_guide"), textX, textY + 11, COLOR_TEXT_FAINT);
+			graphics.drawString(font, Component.translatable("gui.pixelreel.menu.no_guide"), textX, textY + 11, COLOR_TEXT_FAINT);
 		}
 		if (this.entry.guide().hasNext()) {
-			graphics.text(
+			graphics.drawString(
 				font,
 				Component.literal(font.plainSubstrByWidth(
 					Component.translatable("gui.pixelreel.menu.next_prefix").getString() + " " + this.entry.guide().nextTitle(), CARD_WIDTH - 8
@@ -126,7 +128,7 @@ public class ChannelCardWidget extends AbstractWidget {
 		}
 
 		if (hovered) {
-			graphics.setComponentTooltipForNextFrame(font, List.of(
+			graphics.renderComponentTooltip(font, List.of(
 				Component.literal(this.entry.channel().number() + " - " + this.entry.channel().name()).withStyle(ChatFormatting.WHITE),
 				Component.translatable("gui.pixelreel.tooltip.click").withStyle(ChatFormatting.BLUE)
 			), mouseX, mouseY);

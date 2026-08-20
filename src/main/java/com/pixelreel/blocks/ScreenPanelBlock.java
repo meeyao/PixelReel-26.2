@@ -1,8 +1,8 @@
 package com.pixelreel.blocks;
 
+import com.mojang.serialization.MapCodec;
 import com.pixelreel.blockentities.DisplayBlockEntity;
 import com.pixelreel.blockentities.ScreenPanelBlockEntity;
-import com.mojang.serialization.MapCodec;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.player.Player;
@@ -16,7 +16,7 @@ import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.shapes.CollisionContext;
 import net.minecraft.world.phys.shapes.Shapes;
 import net.minecraft.world.phys.shapes.VoxelShape;
-import org.jspecify.annotations.Nullable;
+import org.jetbrains.annotations.Nullable;
 
 /** added invisible collision over the active screen */
 public class ScreenPanelBlock extends BaseEntityBlock {
@@ -28,7 +28,7 @@ public class ScreenPanelBlock extends BaseEntityBlock {
 	}
 
 	@Override
-	protected MapCodec<? extends ScreenPanelBlock> codec() {
+	protected MapCodec<? extends BaseEntityBlock> codec() {
 		return CODEC;
 	}
 
@@ -58,7 +58,7 @@ public class ScreenPanelBlock extends BaseEntityBlock {
 	}
 
 	@Override
-	protected VoxelShape getOcclusionShape(BlockState state) {
+	protected VoxelShape getOcclusionShape(BlockState state, BlockGetter level, BlockPos pos) {
 		return Shapes.empty();
 	}
 
@@ -73,7 +73,7 @@ public class ScreenPanelBlock extends BaseEntityBlock {
 	}
 
 	@Override
-	protected boolean propagatesSkylightDown(BlockState state) {
+	protected boolean propagatesSkylightDown(BlockState state, BlockGetter level, BlockPos pos) {
 		return true;
 	}
 

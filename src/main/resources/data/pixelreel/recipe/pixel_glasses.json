@@ -1,18 +1,24 @@
 {
-	"type": "minecraft:crafting_shaped",
-	"category": "misc",
-	"pattern": [
-		"I I",
-		"GGG",
-		"R R"
-	],
-	"key": {
-		"I": "minecraft:iron_nugget",
-		"G": "minecraft:glass_pane",
-		"R": "minecraft:redstone"
-	},
-	"result": {
-		"id": "pixelreel:pixel_glasses",
-		"count": 1
-	}
+    "type":  "minecraft:crafting_shaped",
+    "category":  "misc",
+    "pattern":  [
+                    "I I",
+                    "GGG",
+                    "R R"
+                ],
+    "key":  {
+                "G":  {
+                          "item":  "minecraft:glass_pane"
+                      },
+                "R":  {
+                          "item":  "minecraft:redstone"
+                      },
+                "I":  {
+                          "item":  "minecraft:iron_nugget"
+                      }
+            },
+    "result":  {
+                   "id":  "pixelreel:pixel_glasses",
+                   "count":  1
+               }
 }

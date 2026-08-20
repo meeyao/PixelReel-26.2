@@ -3,7 +3,7 @@ package com.pixelreel.client;
 import com.pixelreel.channels.ChannelEntry;
 import com.pixelreel.channels.LiveStatus;
 import java.util.List;
-import org.jspecify.annotations.Nullable;
+import org.jetbrains.annotations.Nullable;
 
 /** new channel list */
 public final class ClientChannelCache {

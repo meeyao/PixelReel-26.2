@@ -3,7 +3,7 @@ package com.pixelreel.channels;
 import java.util.Locale;
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.codec.StreamCodec;
-import org.jspecify.annotations.Nullable;
+import org.jetbrains.annotations.Nullable;
 
 /** one live channel from the playlist and guide */
 public record Channel(String id, int number, String name, String logoUrl, String guideIconUrl, String streamUrl) {
@@ -34,14 +34,6 @@ public record Channel(String id, int number, String name, String logoUrl, String
 
 	public boolean isPlayable() {
 		return !this.streamUrl.isEmpty();
-	}
-
-	public Channel withoutStreamUrl() {
-		return this.withoutClientSecrets();
-	}
-
-	public Channel withoutClientSecrets() {
-		return new Channel(this.id, this.number, this.name, this.logoUrl, this.guideIconUrl, "");
 	}
 
 	public String normalizedName() {

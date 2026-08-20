@@ -53,26 +53,23 @@ public final class PixelReelConfig {
 
 	public double globalTvVolume = 1.5;
 
-	public int maxSimultaneousChannels = 4;
+	public int maxSimultaneousChannels = 2;
 
 	public String artworkCacheLocation = "pixelreel-cache";
 	public int artworkCacheHours = 24;
 
 	public boolean channelPrewarmingEnabled = true;
-	public int prewarmLimit = 2;
+	public int prewarmLimit = 1;
 	public int warmPlayerTimeoutSeconds = 20;
 
 	public double defaultDisplayVolume = 1.0;
 
 	public int networkTimeoutSeconds = 10;
-	public int streamCachingMillis = 5000;
+	public int streamCachingMillis = 3000;
 	public int streamReconnectAttempts = 5;
 	public int channelCacheSeconds = 300;
-	public int maximumVideoResolution = 1920;
+	public int maximumVideoResolution = 1280;
 	public int maximumPlaybackDistance = 96;
-
-	public String proxyHost = "";
-	public int proxyPort = 28100;
 
 	public Map<String, String> posterOverrides = new HashMap<>();
 
@@ -121,23 +118,21 @@ public final class PixelReelConfig {
 		copy.permissionConfigurePlex = normalizePermission(this.permissionConfigurePlex, "op");
 		copy.permissionRefreshLibrary = normalizePermission(this.permissionRefreshLibrary, "op");
 		copy.globalTvVolume = clamp(this.globalTvVolume, 0.0, 2.0, 1.5);
-		copy.maxSimultaneousChannels = clamp(this.maxSimultaneousChannels, 1, 16, 4);
+		copy.maxSimultaneousChannels = clamp(this.maxSimultaneousChannels, 1, 4, 2);
 		copy.artworkCacheLocation = this.artworkCacheLocation == null || this.artworkCacheLocation.isBlank()
 			? "pixelreel-cache"
 			: this.artworkCacheLocation.trim();
 		copy.artworkCacheHours = clamp(this.artworkCacheHours, 1, 24 * 30, 24);
 		copy.channelPrewarmingEnabled = this.channelPrewarmingEnabled;
-		copy.prewarmLimit = clamp(this.prewarmLimit, 0, 8, 2);
+		copy.prewarmLimit = clamp(this.prewarmLimit, 0, 4, 1);
 		copy.warmPlayerTimeoutSeconds = clamp(this.warmPlayerTimeoutSeconds, 5, 600, 20);
 		copy.defaultDisplayVolume = clamp(this.defaultDisplayVolume, 0.0, 1.0, 1.0);
 		copy.networkTimeoutSeconds = clamp(this.networkTimeoutSeconds, 1, 120, 10);
-		copy.streamCachingMillis = clamp(this.streamCachingMillis, 0, 20000, 5000);
+		copy.streamCachingMillis = clamp(this.streamCachingMillis, 0, 10000, 3000);
 		copy.streamReconnectAttempts = clamp(this.streamReconnectAttempts, 0, 20, 5);
 		copy.channelCacheSeconds = clamp(this.channelCacheSeconds, 5, 86400, 300);
-		copy.maximumVideoResolution = clamp(this.maximumVideoResolution, 128, 3840, 1920);
+		copy.maximumVideoResolution = clamp(this.maximumVideoResolution, 128, 1280, 1280);
 		copy.maximumPlaybackDistance = clamp(this.maximumPlaybackDistance, 8, 256, 96);
-		copy.proxyHost = this.proxyHost == null ? "" : this.proxyHost.trim();
-		copy.proxyPort = this.proxyPort <= 0 ? 28100 : clamp(this.proxyPort, 1024, 65535, 28100);
 		copy.posterOverrides = this.posterOverrides == null ? new HashMap<>() : new HashMap<>(this.posterOverrides);
 		return copy;
 	}

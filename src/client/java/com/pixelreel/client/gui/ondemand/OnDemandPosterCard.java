@@ -1,18 +1,15 @@
 package com.pixelreel.client.gui.ondemand;
 
-import com.pixelreel.client.ClientPosterUrlCache;
 import com.pixelreel.client.gui.shared.SharedPoster;
 import com.pixelreel.client.texture.PosterCache;
 import com.pixelreel.jellyfin.JellyfinItemSummary;
-import com.pixelreel.ondemand.OnDemandProvider;
 import java.util.List;
 import java.util.function.Consumer;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.narration.NarrationElementOutput;
-import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.network.chat.Component;
 
 /** getting Posters card from selected provider like Jellyfin, Emby, Plex. */
@@ -30,13 +27,11 @@ public class OnDemandPosterCard extends AbstractWidget {
 	private static final int COLOR_PROGRESS = 0xFF46C878;
 
 	private JellyfinItemSummary item;
-	private final OnDemandProvider provider;
 	private final Consumer<JellyfinItemSummary> onSelect;
 
-	public OnDemandPosterCard(int x, int y, OnDemandProvider provider, JellyfinItemSummary item, Consumer<JellyfinItemSummary> onSelect) {
+	public OnDemandPosterCard(int x, int y, JellyfinItemSummary item, Consumer<JellyfinItemSummary> onSelect) {
 		super(x, y, CARD_WIDTH, CARD_HEIGHT, Component.literal(item.title()));
 		this.item = item;
-		this.provider = provider;
 		this.onSelect = onSelect;
 	}
 
@@ -46,12 +41,12 @@ public class OnDemandPosterCard extends AbstractWidget {
 	}
 
 	@Override
-	public void onClick(MouseButtonEvent event, boolean doubled) {
+	public void onClick(double mouseX, double mouseY) {
 		this.onSelect.accept(this.item);
 	}
 
 	@Override
-	protected void extractWidgetRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTicks) {
+	protected void renderWidget(GuiGraphics graphics, int mouseX, int mouseY, float partialTicks) {
 		int x = this.getX();
 		int y = this.getY();
 		boolean hovered = this.isHovered();
@@ -64,16 +59,15 @@ public class OnDemandPosterCard extends AbstractWidget {
 		graphics.fill(thumbX, thumbY, thumbX + thumbWidth, thumbY + thumbHeight, COLOR_POSTER_BACK);
 
 		var font = Minecraft.getInstance().font;
-		String posterUrl = ClientPosterUrlCache.INSTANCE.url(this.provider, this.item.id());
-		PosterCache.Poster thumb = PosterCache.INSTANCE.getByUrl(this.item.id(), posterUrl);
+		PosterCache.Poster thumb = PosterCache.INSTANCE.getByUrl(this.item.id(), this.item.imageUrl());
 		if (thumb.state() == PosterCache.State.READY && thumb.texture() != null) {
 			SharedPoster.blitCover(graphics, thumb, thumbX, thumbY, thumbWidth, thumbHeight);
 		} else if (thumb.state() == PosterCache.State.LOADING) {
 			SharedPoster.blitPlaceholder(graphics, PosterCache.PLACEHOLDER, thumbX, thumbY, thumbWidth, thumbHeight);
-			graphics.centeredText(font, Component.translatable("gui.pixelreel.menu.loading_art"), x + CARD_WIDTH / 2, thumbY + thumbHeight / 2 - 4, COLOR_TEXT_FAINT);
+			graphics.drawCenteredString(font, Component.translatable("gui.pixelreel.menu.loading_art"), x + CARD_WIDTH / 2, thumbY + thumbHeight / 2 - 4, COLOR_TEXT_FAINT);
 		} else {
 			SharedPoster.blitPlaceholder(graphics, PosterCache.PLACEHOLDER, thumbX, thumbY, thumbWidth, thumbHeight);
-			graphics.centeredText(
+			graphics.drawCenteredString(
 				font,
 				Component.literal(font.plainSubstrByWidth(this.item.title(), thumbWidth - 4)),
 				x + CARD_WIDTH / 2,
@@ -90,7 +84,7 @@ public class OnDemandPosterCard extends AbstractWidget {
 			graphics.fill(thumbX, barY, thumbX + (int)(thumbWidth * progress), barY + 3, COLOR_PROGRESS);
 		}
 
-		graphics.text(
+		graphics.drawString(
 			font,
 			Component.literal(font.plainSubstrByWidth(this.item.title(), CARD_WIDTH - 8)),
 			x + 4,
@@ -98,11 +92,11 @@ public class OnDemandPosterCard extends AbstractWidget {
 			COLOR_TEXT
 		);
 		if (this.item.productionYear() > 0) {
-			graphics.text(font, Component.literal(String.valueOf(this.item.productionYear())), x + 4, y + POSTER_HEIGHT + 16, COLOR_TEXT_DIM);
+			graphics.drawString(font, Component.literal(String.valueOf(this.item.productionYear())), x + 4, y + POSTER_HEIGHT + 16, COLOR_TEXT_DIM);
 		}
 
 		if (hovered) {
-			graphics.setComponentTooltipForNextFrame(font, List.of(
+			graphics.renderComponentTooltip(font, List.of(
 				Component.literal(this.item.title()).withStyle(ChatFormatting.WHITE),
 				Component.translatable("gui.pixelreel.tooltip.click_media").withStyle(ChatFormatting.BLUE)
 			), mouseX, mouseY);

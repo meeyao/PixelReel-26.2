@@ -7,7 +7,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
-import org.jspecify.annotations.Nullable;
+import org.jetbrains.annotations.Nullable;
 import uk.co.caprica.vlcj.factory.MediaPlayerFactory;
 import uk.co.caprica.vlcj.factory.discovery.NativeDiscovery;
 
@@ -47,7 +47,7 @@ public final class VlcRuntime {
 				PixelReel.LOGGER.warn("pixelReel: {}", unavailableReason);
 				return;
 			}
-			int caching = Math.clamp(ConfigManager.get().streamCachingMillis, 0, 20000);
+			int caching = Math.clamp(ConfigManager.get().streamCachingMillis, 0, 10000);
 			List<String> args = List.of(
 				"--quiet",
 				"--intf=dummy",

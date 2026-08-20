@@ -13,11 +13,11 @@ import com.pixelreel.networking.ScreenAction;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
-import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
-import org.jspecify.annotations.Nullable;
+import org.jetbrains.annotations.Nullable;
 
 /* The guide: a scroll poster grid of every channel  */
 public class ChannelMenuScreen extends Screen {
@@ -99,7 +99,7 @@ public class ChannelMenuScreen extends Screen {
 		this.footerButtons.add(this.addRenderableWidget(
 			Button.builder(Component.translatable("gui.pixelreel.jellyfin.back"), button -> {
 				if (this.minecraft != null) {
-					this.minecraft.gui.setScreen(new MediaSourceScreen(this.display));
+					this.minecraft.setScreen(new MediaSourceScreen(this.display));
 				}
 			}).bounds(centre + 106, y, 64, 20).build()
 		));
@@ -206,15 +206,15 @@ public class ChannelMenuScreen extends Screen {
 	}
 
 	@Override
-	public void extractRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTicks) {
+	public void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTicks) {
 		this.renderHeader(graphics);
 		graphics.fill(0, this.height - FOOTER_HEIGHT, this.width, this.height, GuiColors.FOOTER);
 		this.renderFooterLabels(graphics);
-		super.extractRenderState(graphics, mouseX, mouseY, partialTicks);
+		super.render(graphics, mouseX, mouseY, partialTicks);
 	}
 
-	private void renderHeader(GuiGraphicsExtractor graphics) {
-		graphics.centeredText(this.font, this.title, this.width / 2, 10, GuiColors.TEXT);
+	private void renderHeader(GuiGraphics graphics) {
+		graphics.drawCenteredString(this.font, this.title, this.width / 2, 10, GuiColors.TEXT);
 		LiveStatus status = ClientChannelCache.INSTANCE.status();
 		Component line;
 		int color = GuiColors.TEXT_DIM;
@@ -236,14 +236,14 @@ public class ChannelMenuScreen extends Screen {
 				Component.translatable(this.display.type().translationKey())
 			);
 		}
-		graphics.centeredText(this.font, line, this.width / 2, 24, color);
+		graphics.drawCenteredString(this.font, line, this.width / 2, 24, color);
 	}
 
-	private void renderFooterLabels(GuiGraphicsExtractor graphics) {
+	private void renderFooterLabels(GuiGraphics graphics) {
 		int centre = this.width / 2;
 		int y = this.height - FOOTER_HEIGHT + 12;
 		int volume = Math.round(this.display.getVolume() * 100.0F);
-		graphics.centeredText(this.font, Component.literal(volume + "%"), centre - 20, y, GuiColors.TEXT);
+		graphics.drawCenteredString(this.font, Component.literal(volume + "%"), centre - 20, y, GuiColors.TEXT);
 	}
 
 	private int contentHeight() {

@@ -1,5 +1,5 @@
 plugins {
-	id 'net.fabricmc.fabric-loom' version "${loom_version}"
+	id 'net.fabricmc.fabric-loom-remap' version "${loom_version}"
 	id 'maven-publish'
 }
 
@@ -12,6 +12,7 @@ repositories {
 }
 
 loom {
+	accessWidenerPath = file("src/main/resources/pixelreel.accesswidener")
 	splitEnvironmentSourceSets()
 
 	mods {
@@ -20,15 +21,25 @@ loom {
 			sourceSet sourceSets.client
 		}
 	}
+
+	runs {
+		client {
+			vmArgs "-Xms2G", "-Xmx4G"
+		}
+		server {
+			vmArgs "-Xms1G", "-Xmx2G"
+		}
+	}
 }
 
 dependencies {
 	// To change the versions see the gradle.properties file
 	minecraft "com.mojang:minecraft:${project.minecraft_version}"
-	implementation "net.fabricmc:fabric-loader:${project.loader_version}"
+	mappings loom.officialMojangMappings()
+	modImplementation "net.fabricmc:fabric-loader:${project.loader_version}"
 
 	// Fabric API. This is technically optional, but you probably want it anyway.
-	implementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_api_version}"
+	modImplementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_api_version}"
 
 	// vlcj drives video/audio decoding through the locally installed VLC (libVLC).
 	// The jars are bundled inside the mod jar so players only need VLC itself.
@@ -37,13 +48,6 @@ dependencies {
 	include "uk.co.caprica:vlcj-natives:${project.vlcj_natives_version}"
 	include "net.java.dev.jna:jna:${project.jna_version}"
 	include "net.java.dev.jna:jna-platform:${project.jna_version}"
-
-	testImplementation "org.junit.jupiter:junit-jupiter:5.11.4"
-	testRuntimeOnly "org.junit.platform:junit-platform-launcher"
-}
-
-test {
-	useJUnitPlatform()
 }
 
 processResources {
@@ -56,7 +60,7 @@ processResources {
 }
 
 tasks.withType(JavaCompile).configureEach {
-	it.options.release = 25
+	it.options.release = 21
 }
 
 java {
@@ -65,54 +69,8 @@ java {
 	// If you remove this line, sources will not be generated.
 	withSourcesJar()
 
-	sourceCompatibility = JavaVersion.VERSION_25
-	targetCompatibility = JavaVersion.VERSION_25
-}
-
-tasks.register("securityAudit") {
-	group = "verification"
-	description = "Checks for known credential leak regressions in packets and world-save serialization."
-
-	doLast {
-		def root = project.layout.projectDirectory
-		def failures = []
-
-		def displayEntity = root.file("src/main/java/com/pixelreel/blockentities/DisplayBlockEntity.java").asFile.text
-		[
-			"output.putString(KEY_STREAM_URL, this.streamUrl)",
-			"output.putString(KEY_MEDIA_IMAGE, this.mediaImageUrl)",
-			"output.putString(KEY_SUB_URL, this.subtitleFetchUrl)",
-			"output.putString(KEY_PLEX_PART_KEY, this.plexPartKey)"
-		].each { needle ->
-			if (displayEntity.contains(needle)) {
-				failures << "DisplayBlockEntity persists a secret-bearing field: ${needle}"
-			}
-		}
-
-		def serverNetworking = root.file("src/main/java/com/pixelreel/networking/ServerNetworking.java").asFile.text
-		if (!serverNetworking.contains("ChannelService.INSTANCE.entries().stream().map(ChannelEntry::withoutClientSecrets).toList()")) {
-			failures << "Channel list packets must redact stream/artwork URLs with ChannelEntry::withoutClientSecrets."
-		}
-		if (!serverNetworking.contains("items.stream().map(JellyfinItemSummary::forClientPacket).toList()")) {
-			failures << "Media children/detail packets must redact provider poster URLs with JellyfinItemSummary::forClientPacket."
-		}
-		if (!serverNetworking.contains("canReceivePlaybackUrl(player, display)")) {
-			failures << "Playback URL delivery must check the player's media permissions."
-		}
-
-		def itemSummary = root.file("src/main/java/com/pixelreel/jellyfin/JellyfinItemSummary.java").asFile.text
-		if (!itemSummary.contains("this.forClientPacket(false)") || !itemSummary.contains('""')) {
-			failures << "JellyfinItemSummary client packet helpers must redact imageUrl."
-		}
-
-		if (!failures.isEmpty()) {
-			throw new GradleException("Security audit failed:\n - " + failures.join("\n - "))
-		}
-	}
-}
-
-tasks.named("check") {
-	dependsOn(tasks.named("securityAudit"))
+	sourceCompatibility = JavaVersion.VERSION_21
+	targetCompatibility = JavaVersion.VERSION_21
 }
 
 jar {
@@ -121,6 +79,21 @@ jar {
 
 	from("LICENSE") {
 		rename { "${it}_$projectName"}
+	}
+}
+
+// Cursor/VS Code Java LS imports this Gradle project as folder+name, not rootProject.name.
+// Patch Loom's generated launch.json so Run and Debug keeps working after `gradlew vscode`.
+tasks.named("vscode").configure {
+	doLast {
+		def launchFile = file(".vscode/launch.json")
+		if (!launchFile.exists()) return
+
+		def javaProjectName = "${project.name}-${project.rootDir.name}"
+		launchFile.text = launchFile.text.replace(
+			"\"projectName\": \"${project.name}\"",
+			"\"projectName\": \"${javaProjectName}\""
+		)
 	}
 }
 

@@ -5,12 +5,12 @@ import com.pixelreel.client.ClientMediaCache;
 import com.pixelreel.client.ClientNetworking;
 import com.pixelreel.client.gui.GuiColors;
 import com.pixelreel.networking.ModNetworkPayloads;
-import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
-import org.jspecify.annotations.Nullable;
+import org.jetbrains.annotations.Nullable;
 
 /** Tunarr configuration. */
 public class TunarrConfigScreen extends Screen {
@@ -44,7 +44,7 @@ public class TunarrConfigScreen extends Screen {
 		this.addRenderableWidget(
 			Button.builder(Component.translatable("gui.pixelreel.jellyfin.back"), button -> {
 				if (this.minecraft != null) {
-					this.minecraft.gui.setScreen(this.parent);
+					this.minecraft.setScreen(this.parent);
 				}
 			}).bounds(this.width / 2 + 10, this.height - 36, 100, 20).build()
 		);
@@ -69,13 +69,13 @@ public class TunarrConfigScreen extends Screen {
 	}
 
 	@Override
-	public void extractRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTicks) {
-		super.extractRenderState(graphics, mouseX, mouseY, partialTicks);
-		graphics.centeredText(this.font, this.title, this.width / 2, 16, GuiColors.TEXT);
-		graphics.centeredText(this.font, Component.translatable("gui.pixelreel.tunarr.config.subtitle"), this.width / 2, 30, GuiColors.TEXT_DIM);
-		graphics.text(this.font, Component.translatable("gui.pixelreel.tunarr.config.m3u"), this.width / 2 - 160, 44, GuiColors.TEXT_DIM);
-		graphics.text(this.font, Component.translatable("gui.pixelreel.tunarr.config.xmltv"), this.width / 2 - 160, 88, GuiColors.TEXT_DIM);
-		graphics.centeredText(this.font, Component.translatable("gui.pixelreel.tunarr.config.help"), this.width / 2, 130, GuiColors.TEXT_DIM);
+	public void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTicks) {
+		super.render(graphics, mouseX, mouseY, partialTicks);
+		graphics.drawCenteredString(this.font, this.title, this.width / 2, 16, GuiColors.TEXT);
+		graphics.drawCenteredString(this.font, Component.translatable("gui.pixelreel.tunarr.config.subtitle"), this.width / 2, 30, GuiColors.TEXT_DIM);
+		graphics.drawString(this.font, Component.translatable("gui.pixelreel.tunarr.config.m3u"), this.width / 2 - 160, 44, GuiColors.TEXT_DIM);
+		graphics.drawString(this.font, Component.translatable("gui.pixelreel.tunarr.config.xmltv"), this.width / 2 - 160, 88, GuiColors.TEXT_DIM);
+		graphics.drawCenteredString(this.font, Component.translatable("gui.pixelreel.tunarr.config.help"), this.width / 2, 130, GuiColors.TEXT_DIM);
 
 		ModNetworkPayloads.TunarrConfigData data = ClientMediaCache.INSTANCE.tunarrConfigData();
 		if (data != null) {
@@ -90,7 +90,7 @@ public class TunarrConfigScreen extends Screen {
 			} else {
 				line = Component.translatable("gui.pixelreel.tunarr.config.ready", status.channelCount());
 			}
-			graphics.centeredText(this.font, line, this.width / 2, this.height - 56, color);
+			graphics.drawCenteredString(this.font, line, this.width / 2, this.height - 56, color);
 		}
 	}
 

@@ -1,16 +1,14 @@
 package com.pixelreel.blocks;
 
+import com.mojang.serialization.MapCodec;
 import com.pixelreel.ClientBridge;
 import com.pixelreel.blockentities.DisplayBlockEntity;
 import com.pixelreel.blockentities.ScreenPanelBlockEntity;
 import com.pixelreel.registry.ModBlockEntities;
 import com.pixelreel.registry.ModBlocks;
 import com.pixelreel.server.ScreenControllerLogic;
-import com.mojang.serialization.MapCodec;
-import com.mojang.serialization.codecs.RecordCodecBuilder;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
-import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
@@ -20,7 +18,6 @@ import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.BaseEntityBlock;
 import net.minecraft.world.level.block.Block;
-import net.minecraft.world.level.block.HorizontalDirectionalBlock;
 import net.minecraft.world.level.block.Mirror;
 import net.minecraft.world.level.block.Rotation;
 import net.minecraft.world.level.block.entity.BlockEntity;
@@ -35,16 +32,15 @@ import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.shapes.CollisionContext;
 import net.minecraft.world.phys.shapes.Shapes;
 import net.minecraft.world.phys.shapes.VoxelShape;
-import org.jspecify.annotations.Nullable;
+import org.jetbrains.annotations.Nullable;
 
 /** this adds collision to the display i think this is needed imagine getting blown up my a creeper and the movie turns off lame */
 public class DisplayBlock extends BaseEntityBlock {
-	public static final MapCodec<DisplayBlock> CODEC = RecordCodecBuilder.mapCodec(instance ->
-		instance.group(
-			propertiesCodec(),
-			net.minecraft.util.StringRepresentable.fromEnum(DisplayType::values).fieldOf("display_type").forGetter(DisplayBlock::type)
-		).apply(instance, DisplayBlock::new));
-	public static final EnumProperty<Direction> FACING = HorizontalDirectionalBlock.FACING;
+	public static final EnumProperty<Direction> FACING = EnumProperty.create(
+		"facing",
+		Direction.class,
+		Direction.Plane.HORIZONTAL
+	);
 	public static final BooleanProperty POWERED = BlockStateProperties.POWERED;
 
 	private final DisplayType type;
@@ -55,13 +51,14 @@ public class DisplayBlock extends BaseEntityBlock {
 		this.registerDefaultState(this.stateDefinition.any().setValue(FACING, Direction.NORTH).setValue(POWERED, Boolean.FALSE));
 	}
 
-	public DisplayType type() {
-		return this.type;
+	@Override
+	protected MapCodec<? extends BaseEntityBlock> codec() {
+		DisplayType displayType = this.type;
+		return simpleCodec(properties -> new DisplayBlock(properties, displayType));
 	}
 
-	@Override
-	protected MapCodec<? extends DisplayBlock> codec() {
-		return CODEC;
+	public DisplayType type() {
+		return this.type;
 	}
 
 	@Override
@@ -112,9 +109,11 @@ public class DisplayBlock extends BaseEntityBlock {
 	}
 
 	@Override
-	protected void affectNeighborsAfterRemoval(BlockState state, ServerLevel level, BlockPos pos, boolean movedByPiston) {
-		removePanels(level, pos, this.type, state.getValue(FACING));
-		super.affectNeighborsAfterRemoval(state, level, pos, movedByPiston);
+	protected void onRemove(BlockState state, Level level, BlockPos pos, BlockState newState, boolean movedByPiston) {
+		if (!state.is(newState.getBlock())) {
+			removePanels(level, pos, this.type, state.getValue(FACING));
+		}
+		super.onRemove(state, level, pos, newState, movedByPiston);
 	}
 
 	public static int placePanels(Level level, BlockPos controllerPos, DisplayType type, Direction facing, boolean onlyReplaceable) {
@@ -180,7 +179,7 @@ public class DisplayBlock extends BaseEntityBlock {
 	}
 
 	@Override
-	protected VoxelShape getOcclusionShape(BlockState state) {
+	protected VoxelShape getOcclusionShape(BlockState state, BlockGetter level, BlockPos pos) {
 		return Shapes.empty();
 	}
 
@@ -195,7 +194,7 @@ public class DisplayBlock extends BaseEntityBlock {
 	}
 
 	@Override
-	protected boolean propagatesSkylightDown(BlockState state) {
+	protected boolean propagatesSkylightDown(BlockState state, BlockGetter level, BlockPos pos) {
 		return true;
 	}
 

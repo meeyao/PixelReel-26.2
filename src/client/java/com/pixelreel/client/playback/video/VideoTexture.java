@@ -6,8 +6,8 @@ import com.pixelreel.client.playback.subtitle.SubtitleRasterizer;
 import java.nio.ByteBuffer;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.texture.DynamicTexture;
-import net.minecraft.resources.Identifier;
-import org.jspecify.annotations.Nullable;
+import net.minecraft.resources.ResourceLocation;
+import org.jetbrains.annotations.Nullable;
 import org.lwjgl.system.MemoryUtil;
 
 /** video texture */
@@ -17,7 +17,7 @@ public final class VideoTexture implements AutoCloseable {
 	private static final int MATTE_LOCK_HITS = 5;
 	private static int nextId;
 
-	private final Identifier textureId;
+	private final ResourceLocation textureId;
 	private final Object lock = new Object();
 	private @Nullable ByteBuffer staging;
 	private int stagingWidth;
@@ -47,7 +47,7 @@ public final class VideoTexture implements AutoCloseable {
 		this.hdrToneMapper.forceOn();
 	}
 
-	public Identifier textureId() {
+	public ResourceLocation textureId() {
 		return this.textureId;
 	}
 
@@ -116,6 +116,11 @@ public final class VideoTexture implements AutoCloseable {
 		int bytes = width * height * 4;
 		synchronized (this.lock) {
 			if (this.closed) {
+				return;
+			}
+			// Drop frames while the previous one is still waiting for GPU upload.
+			// Stops VLC decode from piling copies / HDR / subtitle work onto native memory.
+			if (this.dirty && this.staging != null && this.stagingWidth == width && this.stagingHeight == height) {
 				return;
 			}
 			if (this.staging == null || this.stagingWidth != width || this.stagingHeight != height) {
@@ -235,6 +240,9 @@ public final class VideoTexture implements AutoCloseable {
 
 		DynamicTexture current = this.texture;
 		NativeImage image = current.getPixels();
+		if (image == null) {
+			return false;
+		}
 		synchronized (this.lock) {
 			if (this.closed || this.staging == null) {
 				return true;
@@ -242,7 +250,17 @@ public final class VideoTexture implements AutoCloseable {
 			if (!this.dirty) {
 				return true;
 			}
-			MemoryUtil.memCopy(MemoryUtil.memAddress(this.staging), image.getPointer(), (long)width * height * 4L);
+			try {
+				MemoryUtil.memCopy(
+					MemoryUtil.memAddress(this.staging),
+					NativeImageAccess.pointer(image),
+					(long)width * height * 4L
+				);
+			} catch (Throwable t) {
+				PixelReel.LOGGER.error("Failed to copy video frame into NativeImage", t);
+				this.dirty = false;
+				return false;
+			}
 			this.dirty = false;
 		}
 		current.upload();
@@ -252,7 +270,7 @@ public final class VideoTexture implements AutoCloseable {
 	private void recreate(int width, int height) {
 		this.releaseTexture();
 		try {
-			DynamicTexture created = new DynamicTexture(() -> this.textureId.toString(), width, height, true);
+			DynamicTexture created = new DynamicTexture(width, height, true);
 			Minecraft.getInstance().getTextureManager().register(this.textureId, created);
 			this.texture = created;
 			this.textureWidth = width;

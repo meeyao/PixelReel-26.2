@@ -10,7 +10,7 @@ import java.time.Duration;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicReference;
-import org.jspecify.annotations.Nullable;
+import org.jetbrains.annotations.Nullable;
 
 /** subtitle loader */
 public final class SubtitleOverlay {
@@ -66,36 +66,25 @@ public final class SubtitleOverlay {
 	}
 
 	private void load(String url) {
-		for (int attempt = 1; attempt <= 3; attempt++) {
+		try {
+			HttpRequest request = HttpRequest.newBuilder(URI.create(url))
+				.timeout(Duration.ofSeconds(20))
+				.header("Accept", "text/vtt, text/plain, */*")
+				.GET()
+				.build();
+			HttpResponse<String> response = HTTP.send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
+			if (response.statusCode() / 100 != 2) {
+				PixelReel.LOGGER.warn("Subtitle download failed HTTP {} for {}", response.statusCode(), sanitize(url));
+				return;
+			}
 			if (!url.equals(this.loadedUrl)) {
 				return;
 			}
-			try {
-				HttpRequest request = HttpRequest.newBuilder(URI.create(url))
-					.timeout(Duration.ofSeconds(30))
-					.header("Accept", "text/vtt, text/plain, */*")
-					.GET()
-					.build();
-				HttpResponse<String> response = HTTP.send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
-				if (response.statusCode() / 100 != 2) {
-					PixelReel.LOGGER.warn("Subtitle download failed HTTP {} for {}", response.statusCode(), sanitize(url));
-				} else if (!url.equals(this.loadedUrl)) {
-					return;
-				} else {
-					List<SubtitleParser.Cue> parsed = SubtitleParser.parse(response.body());
-					this.cues.set(parsed);
-					PixelReel.LOGGER.info("Loaded {} subtitle cue(s) from {}", parsed.size(), sanitize(url));
-					return;
-				}
-			} catch (Exception e) {
-				PixelReel.LOGGER.warn("Subtitle download failed for {}: {}", sanitize(url), e.toString());
-			}
-			try {
-				Thread.sleep(1000L * attempt);
-			} catch (InterruptedException e) {
-				Thread.currentThread().interrupt();
-				return;
-			}
+			List<SubtitleParser.Cue> parsed = SubtitleParser.parse(response.body());
+			this.cues.set(parsed);
+			PixelReel.LOGGER.info("Loaded {} subtitle cue(s) from {}", parsed.size(), sanitize(url));
+		} catch (Exception e) {
+			PixelReel.LOGGER.warn("Subtitle download failed for {}: {}", sanitize(url), e.toString());
 		}
 	}
 

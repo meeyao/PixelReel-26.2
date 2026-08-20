@@ -18,15 +18,14 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.stream.Collectors;
-import org.jspecify.annotations.Nullable;
+import org.jetbrains.annotations.Nullable;
 
 /** server-side Emby cache */
 public final class EmbyService {
 	public static final EmbyService INSTANCE = new EmbyService();
 	public static final int PAGE_SIZE = 48;
-	private static final int MAX_INDEXED_ITEMS = 50_000;
 
-	private final ExecutorService executor = Executors.newFixedThreadPool(16, runnable -> {
+	private final ExecutorService executor = Executors.newCachedThreadPool(runnable -> {
 		Thread thread = new Thread(runnable, "pixelreel-emby");
 		thread.setDaemon(true);
 		return thread;
@@ -125,7 +124,9 @@ public final class EmbyService {
 				String userId = this.ensureUserId(client);
 				JellyfinItemSummary item = client.getItem(userId, itemId);
 				if (item != null) {
-					this.itemsById = Map.copyOf(this.boundedCopy(this.itemsById, item.id(), item));
+					Map<String, JellyfinItemSummary> copy = new LinkedHashMap<>(this.itemsById);
+					copy.put(item.id(), item);
+					this.itemsById = Map.copyOf(copy);
 				}
 				return Optional.ofNullable(item);
 			} catch (Exception e) {
@@ -432,28 +433,7 @@ public final class EmbyService {
 		for (JellyfinItemSummary item : items) {
 			copy.put(item.id(), item);
 		}
-		this.itemsById = Map.copyOf(boundedCopy(copy));
-	}
-
-	private static Map<String, JellyfinItemSummary> boundedCopy(
-		Map<String, JellyfinItemSummary> source,
-		@Nullable String extraKey,
-		@Nullable JellyfinItemSummary extraValue
-	) {
-		LinkedHashMap<String, JellyfinItemSummary> copy = new LinkedHashMap<>(source) {
-			@Override
-			protected boolean removeEldestEntry(Map.Entry<String, JellyfinItemSummary> eldest) {
-				return this.size() > MAX_INDEXED_ITEMS;
-			}
-		};
-		if (extraKey != null && extraValue != null) {
-			copy.put(extraKey, extraValue);
-		}
-		return copy;
-	}
-
-	private static Map<String, JellyfinItemSummary> boundedCopy(Map<String, JellyfinItemSummary> source) {
-		return boundedCopy(source, null, null);
+		this.itemsById = Map.copyOf(copy);
 	}
 
 	private String ensureUserId(JellyfinClient client) throws Exception {

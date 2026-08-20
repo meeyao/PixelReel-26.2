@@ -70,22 +70,17 @@ public record JellyfinItemSummary(
 	);
 
 	public JellyfinItemSummary forBrowsePacket() {
-		return this.forClientPacket(false);
-	}
-
-	public JellyfinItemSummary forClientPacket() {
-		return this.forClientPacket(true);
-	}
-
-	private JellyfinItemSummary forClientPacket(boolean includeOverview) {
+		if (this.overview == null || this.overview.isEmpty()) {
+			return this;
+		}
 		return new JellyfinItemSummary(
 			this.id,
 			this.kind,
 			this.title,
-			includeOverview ? this.overview : "",
+			"",
 			this.productionYear,
 			this.runtimeTicks,
-			"",
+			this.imageUrl,
 			this.playbackPositionTicks,
 			this.runTimeTicks,
 			this.played,

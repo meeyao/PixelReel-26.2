@@ -4,10 +4,9 @@ import com.pixelreel.blockentities.DisplayBlockEntity;
 import com.pixelreel.client.ClientNetworking;
 import com.pixelreel.client.gui.shared.TimeFormat;
 import com.pixelreel.networking.ScreenAction;
-import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.screens.Screen;
-import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.network.chat.Component;
 
 /** controls: pause, restart, next-episode */
@@ -57,7 +56,7 @@ public class PlaybackControlScreen extends Screen {
 		this.subtitleButton = this.addRenderableWidget(
 			Button.builder(this.subtitleLabel(), button -> {
 				if (this.minecraft != null) {
-					this.minecraft.gui.setScreen(new SubtitlePickerScreen(this.display, this));
+					this.minecraft.setScreen(new SubtitlePickerScreen(this.display, this));
 				}
 			}).bounds(centre - 140, y - 28, 280, 20).build()
 		);
@@ -99,9 +98,9 @@ public class PlaybackControlScreen extends Screen {
 	}
 
 	@Override
-	public void extractRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTicks) {
-		super.extractRenderState(graphics, mouseX, mouseY, partialTicks);
-		graphics.centeredText(this.font, this.display.getMediaTitle(), this.width / 2, 20, GuiColors.TEXT);
+	public void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTicks) {
+		super.render(graphics, mouseX, mouseY, partialTicks);
+		graphics.drawCenteredString(this.font, this.display.getMediaTitle(), this.width / 2, 20, GuiColors.TEXT);
 
 		long pos = this.display.currentPlaybackPositionMs();
 		long dur = Math.max(1L, this.display.getPlaybackDurationMs());
@@ -111,7 +110,7 @@ public class PlaybackControlScreen extends Screen {
 		int barWidth = 280;
 		graphics.fill(barLeft, barTop, barLeft + barWidth, barTop + 8, COLOR_BAR_BACK);
 		graphics.fill(barLeft, barTop, barLeft + (int)(barWidth * progress), barTop + 8, COLOR_BAR);
-		graphics.centeredText(
+		graphics.drawCenteredString(
 			this.font,
 			Component.literal(TimeFormat.format(pos) + " / " + TimeFormat.format(this.display.getPlaybackDurationMs())),
 			this.width / 2,
@@ -121,7 +120,7 @@ public class PlaybackControlScreen extends Screen {
 
 		if (this.display.hasAutoplayPending()) {
 			long remaining = Math.max(0L, (this.display.getAutoplayAtMillis() - System.currentTimeMillis() + 999L) / 1000L);
-			graphics.centeredText(
+			graphics.drawCenteredString(
 				this.font,
 				Component.translatable("gui.pixelreel.playback.next_in", remaining, this.display.getNextEpisodeTitle()),
 				this.width / 2,
@@ -132,21 +131,19 @@ public class PlaybackControlScreen extends Screen {
 	}
 
 	@Override
-	public boolean mouseClicked(MouseButtonEvent event, boolean doubled) {
+	public boolean mouseClicked(double mouseX, double mouseY, int button) {
 		long dur = this.display.getPlaybackDurationMs();
-		if (dur > 0L && event.button() == 0) {
+		if (dur > 0L && button == 0) {
 			int barLeft = this.width / 2 - 140;
 			int barTop = 40;
 			int barWidth = 280;
-			double mouseX = event.x();
-			double mouseY = event.y();
 			if (mouseX >= barLeft && mouseX <= barLeft + barWidth && mouseY >= barTop && mouseY <= barTop + 8) {
 				float ratio = (float)((mouseX - barLeft) / barWidth);
 				ClientNetworking.sendControl(this.display.getBlockPos(), ScreenAction.SEEK, ratio * dur);
 				return true;
 			}
 		}
-		return super.mouseClicked(event, doubled);
+		return super.mouseClicked(mouseX, mouseY, button);
 	}
 
 	@Override

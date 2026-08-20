@@ -1,0 +1,5 @@
+accessWidener	v2	named
+
+# Video/poster uploads write RGBA directly into NativeImage's off-heap buffer.
+# Reflection on "pixels" breaks at runtime because Fabric remaps the field name.
+accessible	field	com/mojang/blaze3d/platform/NativeImage	pixels	J

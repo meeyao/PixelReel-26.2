@@ -7,12 +7,4 @@ public record ChannelEntry(Channel channel, GuideInfo guide) {
 	public static final StreamCodec<RegistryFriendlyByteBuf, ChannelEntry> STREAM_CODEC = StreamCodec.composite(
 		Channel.STREAM_CODEC, ChannelEntry::channel, GuideInfo.STREAM_CODEC, ChannelEntry::guide, ChannelEntry::new
 	);
-
-	public ChannelEntry withoutStreamUrl() {
-		return this.withoutClientSecrets();
-	}
-
-	public ChannelEntry withoutClientSecrets() {
-		return new ChannelEntry(this.channel.withoutClientSecrets(), this.guide);
-	}
 }

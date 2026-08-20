@@ -7,7 +7,7 @@ import net.minecraft.core.Direction;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.phys.shapes.Shapes;
 import net.minecraft.world.phys.shapes.VoxelShape;
-import org.jspecify.annotations.Nullable;
+import org.jetbrains.annotations.Nullable;
 
 /** adds the thin collision */
 public final class ScreenShapes {
@@ -92,7 +92,7 @@ public final class ScreenShapes {
 	public static VoxelShape controllerStandShape(DisplayType type, Direction facing) {
 		float z = Math.clamp(type.baseZ() - 1.0F, 1.0F, 14.0F);
 		VoxelShape north = Block.box(4.0, 0.0, z - 2.0F, 12.0, 8.0, z + 2.0F);
-		return Shapes.rotateHorizontal(north).get(facing);
+		return rotateFromNorth(north, facing);
 	}
 
 	private static VoxelShape northCellShape(DisplayType type, int column, int depthCell) {
@@ -133,7 +133,28 @@ public final class ScreenShapes {
 		if (north.isEmpty()) {
 			return north;
 		}
-		return Shapes.rotateHorizontal(north).get(facing);
+		return rotateFromNorth(north, facing);
+	}
+
+	private static VoxelShape rotateFromNorth(VoxelShape north, Direction facing) {
+		if (facing == Direction.NORTH) {
+			return north;
+		}
+		VoxelShape[] buffer = new VoxelShape[]{north, Shapes.empty()};
+		int times = switch (facing) {
+			case EAST -> 1;
+			case SOUTH -> 2;
+			case WEST -> 3;
+			default -> 0;
+		};
+		for (int i = 0; i < times; i++) {
+			buffer[0].forAllBoxes((minX, minY, minZ, maxX, maxY, maxZ) -> {
+				buffer[1] = Shapes.or(buffer[1], Shapes.box(1.0 - maxZ, minY, minX, 1.0 - minZ, maxY, maxX));
+			});
+			buffer[0] = buffer[1];
+			buffer[1] = Shapes.empty();
+		}
+		return buffer[0];
 	}
 
 	private static float[] columnDepthRange(DisplayType type, int column) {

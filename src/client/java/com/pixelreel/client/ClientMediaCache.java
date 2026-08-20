@@ -6,7 +6,7 @@ import com.pixelreel.jellyfin.JellyfinStatus;
 import com.pixelreel.networking.ModNetworkPayloads;
 import com.pixelreel.ondemand.OnDemandProvider;
 import java.util.List;
-import org.jspecify.annotations.Nullable;
+import org.jetbrains.annotations.Nullable;
 
 /** Client cache of on-demand lists pages and permission flags. */
 public final class ClientMediaCache {
@@ -60,6 +60,10 @@ public final class ClientMediaCache {
 			payload.plexStatus(),
 			payload.tunarrStatus()
 		);
+	}
+
+	public void beginBrowse() {
+		this.browseItems = List.of();
 	}
 
 	public void acceptBrowse(ModNetworkPayloads.JellyfinBrowseResult payload) {

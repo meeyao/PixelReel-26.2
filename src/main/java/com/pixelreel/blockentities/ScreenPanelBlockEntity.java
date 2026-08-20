@@ -12,10 +12,8 @@ import net.minecraft.network.protocol.game.ClientGamePacketListener;
 import net.minecraft.network.protocol.game.ClientboundBlockEntityDataPacket;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.level.storage.ValueInput;
-import net.minecraft.world.level.storage.ValueOutput;
 import net.minecraft.world.phys.shapes.VoxelShape;
-import org.jspecify.annotations.Nullable;
+import org.jetbrains.annotations.Nullable;
 
 public class ScreenPanelBlockEntity extends BlockEntity {
 	private static final String KEY_CONTROLLER = "Controller";
@@ -69,24 +67,26 @@ public class ScreenPanelBlockEntity extends BlockEntity {
 	}
 
 	@Override
-	protected void saveAdditional(ValueOutput output) {
-		super.saveAdditional(output);
+	protected void saveAdditional(CompoundTag output, HolderLookup.Provider registries) {
+		super.saveAdditional(output, registries);
 		if (this.controllerPos != null) {
 			output.putLong(KEY_CONTROLLER, this.controllerPos.asLong());
 		}
 	}
 
 	@Override
-	protected void loadAdditional(ValueInput input) {
-		super.loadAdditional(input);
-		long packed = input.getLongOr(KEY_CONTROLLER, Long.MIN_VALUE);
+	protected void loadAdditional(CompoundTag input, HolderLookup.Provider registries) {
+		super.loadAdditional(input, registries);
+		long packed = input.contains(KEY_CONTROLLER) ? input.getLong(KEY_CONTROLLER) : Long.MIN_VALUE;
 		this.controllerPos = packed == Long.MIN_VALUE ? null : BlockPos.of(packed);
 		this.cachedShape = null;
 	}
 
 	@Override
 	public CompoundTag getUpdateTag(HolderLookup.Provider registries) {
-		return this.saveCustomOnly(registries);
+		CompoundTag tag = new CompoundTag();
+		this.saveAdditional(tag, registries);
+		return tag;
 	}
 
 	@Override

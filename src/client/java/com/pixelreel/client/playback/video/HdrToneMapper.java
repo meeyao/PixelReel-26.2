@@ -107,7 +107,6 @@ final class HdrToneMapper {
 	}
 
 	private void apply(ByteBuffer rgba, int width, int height) {
-		this.rebuildLut();
 		this.applyWithExposure(rgba, width, height, this.exposure);
 	}
 

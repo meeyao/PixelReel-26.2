@@ -7,10 +7,21 @@ import java.awt.Graphics2D;
 import java.awt.RenderingHints;
 import java.awt.image.BufferedImage;
 import java.nio.ByteBuffer;
+import org.jetbrains.annotations.Nullable;
 import org.lwjgl.system.MemoryUtil;
 
-/** burns subtitle. */
+/**
+ * Burns subtitles into a video frame.
+ * Uses a small bottom strip (not a full-frame BufferedImage) and caches the strip
+ * so we do not allocate megabytes of heap every decoded frame.
+ */
 public final class SubtitleRasterizer {
+	private static final Object LOCK = new Object();
+	private static String cachedText = "";
+	private static int cachedWidth;
+	private static int cachedStripHeight;
+	private static int @Nullable [] cachedStrip;
+
 	private SubtitleRasterizer() {
 	}
 
@@ -24,7 +35,64 @@ public final class SubtitleRasterizer {
 		}
 		try {
 			int fontSize = Math.max(16, Math.min(48, height / 14));
-			BufferedImage image = new BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB);
+			int stripHeight = Math.min(height, blockBottom(height, fontSize, text));
+			int[] strip = stripPixels(text, width, stripHeight, fontSize);
+			if (strip == null) {
+				return;
+			}
+			long base = MemoryUtil.memAddress(rgba);
+			int top = height - stripHeight;
+			for (int row = 0; row < stripHeight; row++) {
+				int frameRow = top + row;
+				int rowOffset = row * width;
+				boolean any = false;
+				for (int col = 0; col < width; col++) {
+					if (((strip[rowOffset + col] >>> 24) & 0xFF) > 8) {
+						any = true;
+						break;
+					}
+				}
+				if (!any) {
+					continue;
+				}
+				for (int col = 0; col < width; col++) {
+					int argb = strip[rowOffset + col];
+					int a = (argb >>> 24) & 0xFF;
+					if (a < 8) {
+						continue;
+					}
+					int sr = (argb >>> 16) & 0xFF;
+					int sg = (argb >>> 8) & 0xFF;
+					int sb = argb & 0xFF;
+					long p = base + ((long) frameRow * width + col) * 4L;
+					if (a >= 250) {
+						MemoryUtil.memPutByte(p, (byte) sr);
+						MemoryUtil.memPutByte(p + 1, (byte) sg);
+						MemoryUtil.memPutByte(p + 2, (byte) sb);
+					} else {
+						int dr = MemoryUtil.memGetByte(p) & 0xFF;
+						int dg = MemoryUtil.memGetByte(p + 1) & 0xFF;
+						int db = MemoryUtil.memGetByte(p + 2) & 0xFF;
+						MemoryUtil.memPutByte(p, (byte) ((sr * a + dr * (255 - a)) / 255));
+						MemoryUtil.memPutByte(p + 1, (byte) ((sg * a + dg * (255 - a)) / 255));
+						MemoryUtil.memPutByte(p + 2, (byte) ((sb * a + db * (255 - a)) / 255));
+					}
+				}
+			}
+		} catch (Throwable ignored) {
+			// Keep video playing even if subtitle burn-in fails.
+		}
+	}
+
+	private static int @Nullable [] stripPixels(String text, int width, int stripHeight, int fontSize) {
+		synchronized (LOCK) {
+			if (cachedStrip != null
+				&& cachedWidth == width
+				&& cachedStripHeight == stripHeight
+				&& text.equals(cachedText)) {
+				return cachedStrip;
+			}
+			BufferedImage image = new BufferedImage(width, stripHeight, BufferedImage.TYPE_INT_ARGB);
 			Graphics2D g = image.createGraphics();
 			try {
 				g.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
@@ -32,8 +100,7 @@ public final class SubtitleRasterizer {
 				FontMetrics metrics = g.getFontMetrics();
 				String[] lines = text.split("\\n");
 				int lineHeight = metrics.getHeight();
-				int blockHeight = lineHeight * lines.length;
-				int y = height - Math.max(height / 12, 16) - blockHeight + metrics.getAscent();
+				int y = Math.max(metrics.getAscent(), stripHeight - 8 - lineHeight * (lines.length - 1));
 				for (String line : lines) {
 					String trimmed = line.strip();
 					if (trimmed.isEmpty()) {
@@ -53,46 +120,13 @@ public final class SubtitleRasterizer {
 			} finally {
 				g.dispose();
 			}
-			long base = MemoryUtil.memAddress(rgba);
-			int[] pixels = new int[width];
-			for (int row = Math.max(0, height - blockBottom(height, fontSize, text)); row < height; row++) {
-				image.getRGB(0, row, width, 1, pixels, 0, width);
-				boolean any = false;
-				for (int px : pixels) {
-					if (((px >>> 24) & 0xFF) > 8) {
-						any = true;
-						break;
-					}
-				}
-				if (!any) {
-					continue;
-				}
-				for (int col = 0; col < width; col++) {
-					int argb = pixels[col];
-					int a = (argb >>> 24) & 0xFF;
-					if (a < 8) {
-						continue;
-					}
-					int sr = (argb >>> 16) & 0xFF;
-					int sg = (argb >>> 8) & 0xFF;
-					int sb = argb & 0xFF;
-					long p = base + ((long)row * width + col) * 4L;
-					if (a >= 250) {
-						MemoryUtil.memPutByte(p, (byte)sr);
-						MemoryUtil.memPutByte(p + 1, (byte)sg);
-						MemoryUtil.memPutByte(p + 2, (byte)sb);
-					} else {
-						int dr = MemoryUtil.memGetByte(p) & 0xFF;
-						int dg = MemoryUtil.memGetByte(p + 1) & 0xFF;
-						int db = MemoryUtil.memGetByte(p + 2) & 0xFF;
-						MemoryUtil.memPutByte(p, (byte)((sr * a + dr * (255 - a)) / 255));
-						MemoryUtil.memPutByte(p + 1, (byte)((sg * a + dg * (255 - a)) / 255));
-						MemoryUtil.memPutByte(p + 2, (byte)((sb * a + db * (255 - a)) / 255));
-					}
-				}
-			}
-		} catch (Throwable ignored) {
-			// i know i know left this catch empty leaving this empty so it doesnt break the video 
+			int[] pixels = new int[width * stripHeight];
+			image.getRGB(0, 0, width, stripHeight, pixels, 0, width);
+			cachedText = text;
+			cachedWidth = width;
+			cachedStripHeight = stripHeight;
+			cachedStrip = pixels;
+			return pixels;
 		}
 	}
 

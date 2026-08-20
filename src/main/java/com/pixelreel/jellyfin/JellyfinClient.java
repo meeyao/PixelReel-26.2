@@ -21,7 +21,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.UUID;
 import java.util.concurrent.ExecutorService;
-import org.jspecify.annotations.Nullable;
+import org.jetbrains.annotations.Nullable;
 
 /** thin Jellyfin/Emby REST client. All methods must run off the server. */
 public final class JellyfinClient {
@@ -542,7 +542,7 @@ public final class JellyfinClient {
 		if (itemId == null || itemId.isBlank() || this.connection.baseUrl().isBlank()) {
 			return "";
 		}
-		return this.base() + "/Items/" + pathSeg(itemId) + "/Images/Primary?maxHeight=400&quality=90&api_key=" + enc(this.connection.apiKey());
+		return this.base() + "/Items/" + pathSeg(itemId) + "/Images/Primary?maxHeight=900&quality=96&api_key=" + enc(this.connection.apiKey());
 	}
 
 	private String buildStreamUrl(

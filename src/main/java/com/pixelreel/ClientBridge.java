@@ -1,7 +1,7 @@
 package com.pixelreel;
 
 import net.minecraft.core.BlockPos;
-import org.jspecify.annotations.Nullable;
+import org.jetbrains.annotations.Nullable;
 
 public final class ClientBridge {
 	private static volatile ClientBridge.@Nullable Handler handler;

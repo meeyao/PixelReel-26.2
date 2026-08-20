@@ -4,12 +4,13 @@ import com.mojang.blaze3d.platform.NativeImage;
 import com.pixelreel.PixelReel;
 import com.pixelreel.channels.Channel;
 import com.pixelreel.channels.ChannelEntry;
+import com.pixelreel.client.playback.video.NativeImageAccess;
 import com.pixelreel.config.ConfigManager;
 import com.pixelreel.config.PixelReelConfig;
 import java.awt.Graphics2D;
+import java.awt.RenderingHints;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -25,33 +26,38 @@ import java.time.Instant;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Deque;
-import java.util.HashMap;
 import java.util.HexFormat;
+import java.util.Iterator;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 import javax.imageio.ImageIO;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.texture.DynamicTexture;
-import net.minecraft.resources.Identifier;
-import org.jspecify.annotations.Nullable;
+import net.minecraft.resources.ResourceLocation;
+import org.jetbrains.annotations.Nullable;
+import org.lwjgl.system.MemoryUtil;
 
 /** loads channel logos asynchronously */
 public final class PosterCache {
 	public static final PosterCache INSTANCE = new PosterCache();
-	public static final Identifier PLACEHOLDER = PixelReel.id("textures/gui/channel_placeholder.png");
+	public static final ResourceLocation PLACEHOLDER = PixelReel.id("textures/gui/channel_placeholder.png");
 
-	private static final int MAX_ENTRIES = 512;
+	private static final int MAX_ENTRIES = 96;
 	private static final long MAX_IMAGE_BYTES = 8 * 1024 * 1024;
-	private static final int MAX_DIMENSION = 512;
+	private static final int MAX_DIMENSION = 1024;
+	private static final int UPLOADS_PER_TICK = 6;
 	private static final long FAILURE_RETRY_MILLIS = 30_000L;
 	private static final Set<String> BROKEN_HOSTS = Set.of("localhost", "127.0.0.1", "0.0.0.0", "::1", "[::1]");
 	private static final String LOGO_KEY_PREFIX = "chlogo:";
+	private static final String IMAGE_KEY_PREFIX = "img:";
 
 	public enum State {
 		LOADING,
@@ -59,24 +65,28 @@ public final class PosterCache {
 		FALLBACK
 	}
 
-	public record Poster(State state, @Nullable Identifier texture, int width, int height) {
-		public Identifier textureOrPlaceholder() {
+	public record Poster(State state, @Nullable ResourceLocation texture, int width, int height) {
+		public ResourceLocation textureOrPlaceholder() {
 			return this.texture != null ? this.texture : PLACEHOLDER;
 		}
+	}
+
+	private record PreparedPixels(int width, int height, int[] argb) {
 	}
 
 	private static final Poster LOADING_POSTER = new Poster(State.LOADING, null, 0, 0);
 	private static final Poster FALLBACK_POSTER = new Poster(State.FALLBACK, null, 0, 0);
 
-	private final Map<String, Entry> entries = new HashMap<>();
+	private final Map<String, Entry> entries = new ConcurrentHashMap<>();
 	private final Deque<String> order = new ArrayDeque<>();
-	private final ExecutorService loader = Executors.newFixedThreadPool(3, runnable -> {
+	private final ExecutorService loader = Executors.newFixedThreadPool(2, runnable -> {
 		Thread thread = new Thread(runnable, "pixelreel-poster");
 		thread.setDaemon(true);
 		return thread;
 	});
+	private final ConcurrentLinkedQueue<Runnable> uploadQueue = new ConcurrentLinkedQueue<>();
+	private final AtomicLong generation = new AtomicLong();
 	private volatile @Nullable HttpClient httpClient;
-	private final AtomicInteger nextTextureIndex = new AtomicInteger();
 
 	private PosterCache() {
 	}
@@ -91,7 +101,7 @@ public final class PosterCache {
 		if (key == null || key.isBlank() || url == null || url.isBlank()) {
 			return FALLBACK_POSTER;
 		}
-		return this.getOrLoad("img:" + key, List.of(new Candidate.Remote(url)));
+		return this.getOrLoad(IMAGE_KEY_PREFIX + key, List.of(new Candidate.Remote(url)));
 	}
 
 	private Poster getOrLoad(String key, List<Candidate> candidates) {
@@ -110,7 +120,7 @@ public final class PosterCache {
 			this.order.remove(key);
 		}
 
-		Entry pending = new Entry();
+		Entry pending = new Entry(this.generation.get());
 		this.put(key, pending);
 		this.loader.execute(() -> this.loadChain(key, pending, candidates));
 		return LOADING_POSTER;
@@ -262,6 +272,9 @@ public final class PosterCache {
 		try {
 			for (Candidate candidate : candidates) {
 				try {
+					if (!this.isCurrent(key, entry)) {
+						return;
+					}
 					byte[] bytes = switch (candidate) {
 						case Candidate.LocalFile localFile -> readLocal(localFile.path());
 						case Candidate.Remote remote -> this.fetchRemote(remote.url());
@@ -269,54 +282,132 @@ public final class PosterCache {
 					if (bytes == null) {
 						continue;
 					}
-					NativeImage image = decodeImage(bytes);
-					if (image == null) {
-						continue;
-					}
-					NativeImage prepared = downscaleIfNeeded(image);
-					Minecraft minecraft = Minecraft.getInstance();
-					if (minecraft == null) {
-						prepared.close();
+					// Decode on the worker only. NativeImage / GL upload must happen on the client tick.
+					PreparedPixels prepared = preparePixels(bytes);
+					if (prepared == null || !this.isCurrent(key, entry)) {
 						continue;
 					}
 					String source = switch (candidate) {
 						case Candidate.LocalFile localFile -> localFile.path().toString();
 						case Candidate.Remote remote -> remote.url();
 					};
-					PixelReel.LOGGER.info("Loaded channel thumbnail for {} from {}", key, source);
-					minecraft.execute(() -> this.install(key, entry, prepared));
+					this.uploadQueue.offer(() -> this.installPrepared(key, entry, prepared, source));
 					return;
 				} catch (Throwable t) {
 					PixelReel.LOGGER.warn("Channel thumbnail candidate failed for {} ({}): {}", key, candidate, t.toString());
 				}
 			}
-			entry.state = State.FALLBACK;
-			entry.failedAt = System.currentTimeMillis();
-			PixelReel.LOGGER.info("No usable channel thumbnail for {}; using fallback card", key);
+			if (this.isCurrent(key, entry)) {
+				entry.state = State.FALLBACK;
+				entry.failedAt = System.currentTimeMillis();
+				PixelReel.LOGGER.debug("No usable channel thumbnail for {}; using fallback card", key);
+			}
 		} catch (Throwable t) {
-			entry.state = State.FALLBACK;
-			entry.failedAt = System.currentTimeMillis();
-			PixelReel.LOGGER.warn("Artwork load failed for {}", key, t);
+			if (this.isCurrent(key, entry)) {
+				entry.state = State.FALLBACK;
+				entry.failedAt = System.currentTimeMillis();
+				PixelReel.LOGGER.warn("Artwork load failed for {}", key, t);
+			}
 		}
 	}
 
-	private static @Nullable NativeImage decodeImage(byte[] bytes) throws IOException {
+	private boolean isCurrent(String key, Entry entry) {
+		return entry.generation == this.generation.get() && this.entries.get(key) == entry;
+	}
+
+	private static @Nullable PreparedPixels preparePixels(byte[] bytes) throws IOException {
+		BufferedImage awt = ImageIO.read(new ByteArrayInputStream(bytes));
+		if (awt == null) {
+			return null;
+		}
+		int width = awt.getWidth();
+		int height = awt.getHeight();
+		if (width <= 0 || height <= 0) {
+			return null;
+		}
+		int targetWidth = width;
+		int targetHeight = height;
+		if (width > MAX_DIMENSION || height > MAX_DIMENSION) {
+			float scale = (float) MAX_DIMENSION / Math.max(width, height);
+			targetWidth = Math.max(1, Math.round(width * scale));
+			targetHeight = Math.max(1, Math.round(height * scale));
+		}
+		BufferedImage rgba = new BufferedImage(targetWidth, targetHeight, BufferedImage.TYPE_INT_ARGB);
+		Graphics2D graphics = rgba.createGraphics();
 		try {
-			return NativeImage.read(bytes);
-		} catch (Exception nativeFailure) {
-			BufferedImage awt = ImageIO.read(new ByteArrayInputStream(bytes));
-			if (awt == null) {
-				throw nativeFailure instanceof IOException io ? io : new IOException(nativeFailure);
-			}
-			int width = awt.getWidth();
-			int height = awt.getHeight();
-			BufferedImage rgba = new BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB);
-			Graphics2D graphics = rgba.createGraphics();
-			graphics.drawImage(awt, 0, 0, null);
+			graphics.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BICUBIC);
+			graphics.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
+			graphics.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+			graphics.drawImage(awt, 0, 0, targetWidth, targetHeight, null);
+		} finally {
 			graphics.dispose();
-			ByteArrayOutputStream png = new ByteArrayOutputStream();
-			ImageIO.write(rgba, "png", png);
-			return NativeImage.read(png.toByteArray());
+		}
+		int[] argb = new int[targetWidth * targetHeight];
+		rgba.getRGB(0, 0, targetWidth, targetHeight, argb, 0, targetWidth);
+		return new PreparedPixels(targetWidth, targetHeight, argb);
+	}
+
+	private static int argbToNative(int argb) {
+		int a = (argb >>> 24) & 0xFF;
+		int r = (argb >>> 16) & 0xFF;
+		int g = (argb >>> 8) & 0xFF;
+		int b = argb & 0xFF;
+		return (a << 24) | (b << 16) | (g << 8) | r;
+	}
+
+	private NativeImage toNativeImage(PreparedPixels prepared) {
+		NativeImage image = new NativeImage(prepared.width(), prepared.height(), false);
+		int[] argb = prepared.argb();
+		try {
+			long base = NativeImageAccess.pointer(image);
+			for (int i = 0; i < argb.length; i++) {
+				MemoryUtil.memPutInt(base + (long) i * 4L, argbToNative(argb[i]));
+			}
+		} catch (RuntimeException reflectionFailed) {
+			int width = prepared.width();
+			for (int y = 0; y < prepared.height(); y++) {
+				int row = y * width;
+				for (int x = 0; x < width; x++) {
+					image.setPixelRGBA(x, y, argbToNative(argb[row + x]));
+				}
+			}
+		}
+		return image;
+	}
+
+	private void installPrepared(String key, Entry entry, PreparedPixels prepared, String source) {
+		if (!this.isCurrent(key, entry)) {
+			return;
+		}
+		NativeImage image = null;
+		try {
+			image = toNativeImage(prepared);
+			if (!this.isCurrent(key, entry)) {
+				image.close();
+				return;
+			}
+			int width = image.getWidth();
+			int height = image.getHeight();
+			DynamicTexture texture = new DynamicTexture(image);
+			image = null;
+			texture.setFilter(true, false);
+			texture.upload();
+			ResourceLocation id = Minecraft.getInstance().getTextureManager()
+				.register("pixelreel_poster", texture);
+			entry.textureId = id;
+			entry.width = width;
+			entry.height = height;
+			entry.state = State.READY;
+			PixelReel.LOGGER.debug("Loaded channel thumbnail for {} from {} -> {}", key, source, id);
+		} catch (Exception e) {
+			if (image != null) {
+				image.close();
+			}
+			if (this.isCurrent(key, entry)) {
+				entry.state = State.FALLBACK;
+				entry.failedAt = System.currentTimeMillis();
+				PixelReel.LOGGER.warn("Could not upload channel artwork for {} from {}", key, source, e);
+			}
 		}
 	}
 
@@ -361,7 +452,8 @@ public final class PosterCache {
 		if (contentType.contains("text/html") || contentType.contains("application/json") || contentType.contains("text/xml") || contentType.contains("application/xml")) {
 			return null;
 		}
-		if (!looksLikeImage(body) || looksLikeText(body)) {
+		boolean declaredImage = contentType.startsWith("image/");
+		if ((!declaredImage && !looksLikeImage(body)) || looksLikeText(body)) {
 			return null;
 		}
 		if (cacheFile != null) {
@@ -376,13 +468,22 @@ public final class PosterCache {
 	}
 
 	private static boolean looksLikeImage(byte[] bytes) {
-		if (bytes.length < 8) {
+		if (bytes.length < 12) {
 			return false;
 		}
 		if ((bytes[0] & 0xFF) == 0x89 && bytes[1] == 0x50 && bytes[2] == 0x4E && bytes[3] == 0x47) {
 			return true;
 		}
 		if ((bytes[0] & 0xFF) == 0xFF && (bytes[1] & 0xFF) == 0xD8 && (bytes[2] & 0xFF) == 0xFF) {
+			return true;
+		}
+		// GIF
+		if (bytes[0] == 'G' && bytes[1] == 'I' && bytes[2] == 'F') {
+			return true;
+		}
+		// WebP: RIFF....WEBP
+		if (bytes[0] == 'R' && bytes[1] == 'I' && bytes[2] == 'F' && bytes[3] == 'F'
+			&& bytes[8] == 'W' && bytes[9] == 'E' && bytes[10] == 'B' && bytes[11] == 'P') {
 			return true;
 		}
 		return false;
@@ -410,40 +511,30 @@ public final class PosterCache {
 		}
 	}
 
-	private static NativeImage downscaleIfNeeded(NativeImage source) {
-		int width = source.getWidth();
-		int height = source.getHeight();
-		if (width <= MAX_DIMENSION && height <= MAX_DIMENSION) {
-			return source;
+	public void clientTick() {
+		int budget = UPLOADS_PER_TICK;
+		Runnable task;
+		while (budget-- > 0 && (task = this.uploadQueue.poll()) != null) {
+			task.run();
 		}
-		float scale = (float)MAX_DIMENSION / Math.max(width, height);
-		int targetWidth = Math.max(1, Math.round(width * scale));
-		int targetHeight = Math.max(1, Math.round(height * scale));
-		NativeImage target = new NativeImage(targetWidth, targetHeight, false);
-		source.resizeSubRectTo(0, 0, width, height, target);
-		source.close();
-		return target;
 	}
 
-	private void install(String key, Entry entry, NativeImage image) {
-		if (this.entries.get(key) != entry) {
-			image.close();
-			return;
-		}
-		try {
-			int width = image.getWidth();
-			int height = image.getHeight();
-			Identifier id = PixelReel.id("poster_" + this.nextTextureIndex.getAndIncrement());
-			Minecraft.getInstance().getTextureManager().register(id, new DynamicTexture(() -> id.toString(), image));
-			entry.textureId = id;
-			entry.width = width;
-			entry.height = height;
-			entry.state = State.READY;
-		} catch (Exception e) {
-			image.close();
-			entry.state = State.FALLBACK;
-			entry.failedAt = System.currentTimeMillis();
-			PixelReel.LOGGER.warn("Could not upload channel artwork for {}", key, e);
+	/**
+	 * Drop on-demand poster textures for the previous browse page.
+	 * Channel logos are kept. In-flight loads for the old page are cancelled.
+	 */
+	public void clearPage() {
+		this.generation.incrementAndGet();
+		this.uploadQueue.clear();
+		Iterator<Map.Entry<String, Entry>> iterator = this.entries.entrySet().iterator();
+		while (iterator.hasNext()) {
+			Map.Entry<String, Entry> mapEntry = iterator.next();
+			if (!mapEntry.getKey().startsWith(IMAGE_KEY_PREFIX)) {
+				continue;
+			}
+			iterator.remove();
+			this.order.remove(mapEntry.getKey());
+			releaseTexture(mapEntry.getValue());
 		}
 	}
 
@@ -489,16 +580,23 @@ public final class PosterCache {
 	}
 
 	public void clear() {
+		this.generation.incrementAndGet();
+		this.uploadQueue.clear();
 		this.entries.values().forEach(PosterCache::releaseTexture);
 		this.entries.clear();
 		this.order.clear();
 	}
 
 	private static final class Entry {
+		final long generation;
 		volatile State state = State.LOADING;
-		@Nullable Identifier textureId;
+		@Nullable ResourceLocation textureId;
 		int width;
 		int height;
 		volatile long failedAt;
+
+		Entry(long generation) {
+			this.generation = generation;
+		}
 	}
 }

@@ -101,7 +101,7 @@ public final class CinemaPermissions {
 		if (normalized.equals("false") || normalized.equals("none") || normalized.equals("deny")) {
 			return false;
 		}
-		String name = player.getGameProfile().name().toLowerCase(Locale.ROOT);
+		String name = player.getGameProfile().getName().toLowerCase(Locale.ROOT);
 		for (String part : normalized.split(",")) {
 			String token = part.trim();
 			if (token.isEmpty()) {
@@ -118,7 +118,7 @@ public final class CinemaPermissions {
 	}
 
 	private static boolean isOperator(ServerPlayer player) {
-		return Commands.LEVEL_GAMEMASTERS.check(player.permissions());
+		return player.hasPermissions(Commands.LEVEL_GAMEMASTERS);
 	}
 
 	public static PixelReelConfig.FeatureFlags featureFlags(ServerPlayer player) {

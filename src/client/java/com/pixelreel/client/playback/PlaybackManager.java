@@ -8,8 +8,6 @@ import com.pixelreel.config.ConfigManager;
 import com.pixelreel.config.PixelReelConfig;
 import com.pixelreel.items.PixelGlassesItem;
 import com.pixelreel.networking.ScreenAction;
-import java.net.InetSocketAddress;
-import java.net.SocketAddress;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -28,7 +26,7 @@ import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.chunk.LevelChunk;
 import net.minecraft.world.level.chunk.status.ChunkStatus;
 import net.minecraft.world.phys.Vec3;
-import org.jspecify.annotations.Nullable;
+import org.jetbrains.annotations.Nullable;
 
 /** the channels are managed and played */
 public final class PlaybackManager {
@@ -38,23 +36,17 @@ public final class PlaybackManager {
 
 	private final Map<String, ChannelPlayer> players = new HashMap<>();
 	private final Map<String, Integer> playerEpochs = new HashMap<>();
-	private final Map<BlockPos, PlaybackTicket> playbackTickets = new HashMap<>();
-	private final Set<String> pendingTicketRequests = new HashSet<>();
 	private final Set<BlockPos> nearbyControllers = new HashSet<>();
 	private final Set<String> endedReports = new HashSet<>();
 	private final Set<String> durationReports = new HashSet<>();
 	private int tickCounter;
+	private long audioRefreshUntilMs;
 
 	private PlaybackManager() {
 	}
 
 	public @Nullable ChannelPlayer player(String url) {
 		return url == null || url.isEmpty() ? null : this.players.get(url);
-	}
-
-	public @Nullable ChannelPlayer player(DisplayBlockEntity display) {
-		String url = this.playbackUrl(display);
-		return url.isEmpty() ? null : this.players.get(url);
 	}
 
 	public int activePlayerCount() {
@@ -67,56 +59,11 @@ public final class PlaybackManager {
 	public void retry(BlockPos controllerPos) {
 		Minecraft minecraft = Minecraft.getInstance();
 		if (minecraft.level != null && minecraft.level.getBlockEntity(controllerPos) instanceof DisplayBlockEntity display) {
-			ChannelPlayer player = this.player(display);
+			ChannelPlayer player = this.players.get(display.getStreamUrl());
 			if (player != null) {
 				player.retry();
 			}
 		}
-	}
-
-	public void acceptPlaybackUrl(BlockPos pos, int epoch, int proxyPort, String proxyHost, String streamUrl, String subtitleUrl) {
-		BlockPos key = pos.immutable();
-		this.playbackTickets.put(
-			key,
-			new PlaybackTicket(
-				epoch,
-				this.proxyUrl(proxyPort, proxyHost, streamUrl),
-				this.proxyUrl(proxyPort, proxyHost, subtitleUrl)
-			)
-		);
-		this.pendingTicketRequests.remove(ticketRequestKey(key, epoch));
-	}
-
-	private String proxyUrl(int proxyPort, String proxyHost, String url) {
-		if (url == null || url.isBlank()) {
-			return "";
-		}
-		if (!url.startsWith("/")) {
-			return url;
-		}
-		String host = proxyHost == null || proxyHost.isBlank() ? serverProxyHost() : proxyHost;
-		if (host == null || proxyPort <= 0) {
-			return "";
-		}
-		return "http://" + host + ":" + proxyPort + url;
-	}
-
-	public static String serverProxyHost() {
-		Minecraft minecraft = Minecraft.getInstance();
-		if (minecraft == null || minecraft.getConnection() == null) {
-			return null;
-		}
-		try {
-			SocketAddress address = minecraft.getConnection().getConnection().getRemoteAddress();
-			if (address instanceof InetSocketAddress inet) {
-				String host = inet.getHostString();
-				if (host != null && !host.isBlank()) {
-					return host.contains(":") ? "[" + host + "]" : host;
-				}
-			}
-		} catch (RuntimeException ignored) {
-		}
-		return null;
 	}
 
 	public void clientTick() {
@@ -177,9 +124,8 @@ public final class PlaybackManager {
 			if (!display.shouldPlay()) {
 				continue;
 			}
-			String url = this.playbackUrl(display);
+			String url = display.getStreamUrl();
 			if (url == null || url.isEmpty()) {
-				this.requestPlaybackUrl(display);
 				continue;
 			}
 			Vec3 centre = display.screenCentre();
@@ -242,26 +188,39 @@ public final class PlaybackManager {
 		}
 
 		float globalVolume = (float)config.globalTvVolume;
-		Iterator<Map.Entry<String, ChannelPlayer>> iterator = this.players.entrySet().iterator();
-		while (iterator.hasNext()) {
-			Map.Entry<String, ChannelPlayer> entry = iterator.next();
-			ChannelPlayer channelPlayer = entry.getValue();
+		boolean closedAny = false;
+		Iterator<Map.Entry<String, ChannelPlayer>> closer = this.players.entrySet().iterator();
+		while (closer.hasNext()) {
+			Map.Entry<String, ChannelPlayer> entry = closer.next();
 			List<Binding> bindings = desired.get(entry.getKey());
 			boolean active = allowed.contains(entry.getKey()) && bindings != null && !bindings.isEmpty();
-			if (!active) {
-				PixelReel.LOGGER.info("Stopping channel stream ({}) — out of range or switched away", host(entry.getKey()));
-				iterator.remove();
-				this.playerEpochs.remove(entry.getKey());
-				this.endedReports.remove(entry.getKey());
-				this.durationReports.remove(entry.getKey());
-				channelPlayer.close();
+			if (active) {
+				continue;
+			}
+			PixelReel.LOGGER.info("Stopping channel stream ({}) — out of range or switched away", host(entry.getKey()));
+			closer.remove();
+			this.playerEpochs.remove(entry.getKey());
+			this.endedReports.remove(entry.getKey());
+			this.durationReports.remove(entry.getKey());
+			entry.getValue().close();
+			closedAny = true;
+		}
+		if (closedAny) {
+			this.audioRefreshUntilMs = System.currentTimeMillis() + 750L;
+		}
+		boolean refreshAudio = closedAny || System.currentTimeMillis() < this.audioRefreshUntilMs;
+
+		for (Map.Entry<String, ChannelPlayer> entry : this.players.entrySet()) {
+			ChannelPlayer channelPlayer = entry.getValue();
+			List<Binding> bindings = desired.get(entry.getKey());
+			if (bindings == null || bindings.isEmpty()) {
 				continue;
 			}
 
 			Binding nearest = bindings.stream().min(Comparator.comparingDouble(Binding::distanceSqr)).orElseThrow();
 			DisplayBlockEntity display = nearest.display();
 			if (display.isOnDemand()) {
-				channelPlayer.setSubtitleUrl(this.subtitleUrl(display));
+				channelPlayer.setSubtitleUrl(display.getSubtitleFetchUrl());
 				boolean paused = display.isPlaybackPaused() || display.isSuspended();
 				channelPlayer.setDesiredPaused(paused);
 				long target = display.currentPlaybackPositionMs();
@@ -291,12 +250,13 @@ public final class PlaybackManager {
 			}
 			boolean glasses = PixelGlassesItem.isWearing(player);
 			double distance = Math.sqrt(nearest.distanceSqr());
-			// Soft knee near the edge so gain does not slam to zero and mute-thrash.
-			// Cinema glasses listen at full screen volume (no distance falloff).
 			double normalized = glasses ? 1.0 : softDistanceGain(distance, audioRange);
 			float gain = (float)(volume * globalVolume * normalized);
 			if (display.isOnDemand() && display.isPlaybackPaused()) {
 				gain = 0.0F;
+			}
+			if (refreshAudio) {
+				channelPlayer.markVolumeDirty();
 			}
 			channelPlayer.tickAudio(gain);
 		}
@@ -321,7 +281,7 @@ public final class PlaybackManager {
 	}
 
 	public @Nullable PictureHandle pictureFor(DisplayBlockEntity display) {
-		String url = this.playbackUrl(display);
+		String url = display.getStreamUrl();
 		ChannelPlayer current = this.players.get(url);
 		if (current != null && current.hasPicture() && current.uploadFrame()) {
 			VideoTexture texture = current.videoTexture();
@@ -338,7 +298,7 @@ public final class PlaybackManager {
 	}
 
 	public @Nullable PlaybackStatus statusFor(DisplayBlockEntity display) {
-		ChannelPlayer player = this.player(display);
+		ChannelPlayer player = this.players.get(display.getStreamUrl());
 		return player == null ? null : player.status();
 	}
 
@@ -369,53 +329,13 @@ public final class PlaybackManager {
 			this.players.clear();
 		}
 		this.playerEpochs.clear();
-		this.playbackTickets.clear();
-		this.pendingTicketRequests.clear();
 		this.endedReports.clear();
 		this.durationReports.clear();
 		this.nearbyControllers.clear();
 	}
 
-	private String playbackUrl(DisplayBlockEntity display) {
-		String direct = display.getStreamUrl();
-		if (direct != null && !direct.isEmpty()) {
-			return direct;
-		}
-		PlaybackTicket ticket = this.playbackTickets.get(display.getBlockPos());
-		if (ticket == null || ticket.epoch() != display.getChannelEpoch()) {
-			return "";
-		}
-		return ticket.streamUrl();
-	}
-
-	private String subtitleUrl(DisplayBlockEntity display) {
-		String direct = display.getSubtitleFetchUrl();
-		if (direct != null && !direct.isEmpty()) {
-			return direct;
-		}
-		PlaybackTicket ticket = this.playbackTickets.get(display.getBlockPos());
-		if (ticket == null || ticket.epoch() != display.getChannelEpoch()) {
-			return "";
-		}
-		return ticket.subtitleUrl();
-	}
-
-	private void requestPlaybackUrl(DisplayBlockEntity display) {
-		String key = ticketRequestKey(display.getBlockPos(), display.getChannelEpoch());
-		if (this.pendingTicketRequests.add(key)) {
-			ClientNetworking.requestPlaybackUrl(display.getBlockPos(), display.getChannelEpoch());
-		}
-	}
-
-	private static String ticketRequestKey(BlockPos pos, int epoch) {
-		return pos.asLong() + ":" + epoch;
-	}
-
-	private record PlaybackTicket(int epoch, String streamUrl, String subtitleUrl) {
-	}
-
 	public record PictureHandle(
-		net.minecraft.resources.Identifier textureId,
+		net.minecraft.resources.ResourceLocation textureId,
 		float aspect,
 		float u0,
 		float v0,

@@ -1,17 +1,17 @@
 package com.pixelreel.client.gui.shared;
 
+import com.mojang.blaze3d.systems.RenderSystem;
 import com.pixelreel.client.texture.PosterCache;
-import net.minecraft.client.gui.GuiGraphicsExtractor;
-import net.minecraft.client.renderer.RenderPipelines;
-import net.minecraft.resources.Identifier;
+import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.resources.ResourceLocation;
 
 /** helpers for poster / thumbnail cards. */
 public final class SharedPoster {
 	private SharedPoster() {
 	}
 
-	public static void blitCover(GuiGraphicsExtractor graphics, PosterCache.Poster poster, int x, int y, int width, int height) {
-		Identifier texture = poster.texture();
+	public static void blitCover(GuiGraphics graphics, PosterCache.Poster poster, int x, int y, int width, int height) {
+		ResourceLocation texture = poster.texture();
 		if (texture == null) {
 			return;
 		}
@@ -34,10 +34,31 @@ public final class SharedPoster {
 			u = 0.0F;
 			v = (texH - regionH) * 0.5F;
 		}
-		graphics.blit(RenderPipelines.GUI_TEXTURED, texture, x, y, u, v, width, height, regionW, regionH, texW, texH);
+		blit(graphics, texture, x, y, width, height, u, v, regionW, regionH, texW, texH);
 	}
 
-	public static void blitPlaceholder(GuiGraphicsExtractor graphics, Identifier texture, int x, int y, int width, int height) {
-		graphics.blit(RenderPipelines.GUI_TEXTURED, texture, x, y, 0.0F, 0.0F, width, height, 16, 16);
+	public static void blitPlaceholder(GuiGraphics graphics, ResourceLocation texture, int x, int y, int width, int height) {
+		// Stretch the full 16x16 placeholder into the card slot.
+		blit(graphics, texture, x, y, width, height, 0.0F, 0.0F, 16, 16, 16, 16);
+	}
+
+	private static void blit(
+		GuiGraphics graphics,
+		ResourceLocation texture,
+		int x,
+		int y,
+		int width,
+		int height,
+		float u,
+		float v,
+		int regionW,
+		int regionH,
+		int texW,
+		int texH
+	) {
+		RenderSystem.enableBlend();
+		RenderSystem.defaultBlendFunc();
+		graphics.blit(texture, x, y, width, height, u, v, regionW, regionH, texW, texH);
+		RenderSystem.disableBlend();
 	}
 }

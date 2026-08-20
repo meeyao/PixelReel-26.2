@@ -9,11 +9,11 @@ import com.pixelreel.networking.ModNetworkPayloads;
 import com.pixelreel.ondemand.OnDemandProvider;
 import java.util.ArrayList;
 import java.util.List;
-import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
-import org.jspecify.annotations.Nullable;
+import org.jetbrains.annotations.Nullable;
 
 /** pagination for seasons of a tvshow  */
 public class OnDemandSeriesScreen extends Screen {
@@ -63,7 +63,7 @@ public class OnDemandSeriesScreen extends Screen {
 		this.addRenderableWidget(
 			Button.builder(Component.translatable("gui.pixelreel.jellyfin.back"), button -> {
 				if (this.minecraft != null) {
-					this.minecraft.gui.setScreen(this.parent);
+					this.minecraft.setScreen(this.parent);
 				}
 			}).bounds(this.width / 2 - 40, this.height - 28, 80, 20).build()
 		);
@@ -126,7 +126,7 @@ public class OnDemandSeriesScreen extends Screen {
 				Component.literal(seasonRef.seasonLabel()),
 				b -> {
 					if (this.minecraft != null) {
-						this.minecraft.gui.setScreen(
+						this.minecraft.setScreen(
 							new OnDemandEpisodeScreen(this.display, this.series, seasonRef, this.provider, this)
 						);
 					}
@@ -167,9 +167,9 @@ public class OnDemandSeriesScreen extends Screen {
 	}
 
 	@Override
-	public void extractRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTicks) {
-		graphics.centeredText(this.font, this.title, this.width / 2, 12, GuiColors.TEXT);
-		graphics.centeredText(this.font, Component.translatable("gui.pixelreel.jellyfin.seasons"), this.width / 2, 26, GuiColors.TEXT_DIM);
+	public void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTicks) {
+		graphics.drawCenteredString(this.font, this.title, this.width / 2, 12, GuiColors.TEXT);
+		graphics.drawCenteredString(this.font, Component.translatable("gui.pixelreel.jellyfin.seasons"), this.width / 2, 26, GuiColors.TEXT_DIM);
 		if (!this.series.overview().isEmpty()) {
 			int lineY = 38;
 			int maxWidth = Math.max(80, this.width - 48);
@@ -180,7 +180,7 @@ public class OnDemandSeriesScreen extends Screen {
 				if (chunk.isEmpty()) {
 					break;
 				}
-				graphics.centeredText(this.font, Component.literal(chunk), this.width / 2, lineY, GuiColors.TEXT_DIM);
+				graphics.drawCenteredString(this.font, Component.literal(chunk), this.width / 2, lineY, GuiColors.TEXT_DIM);
 				lineY += 10;
 				start += chunk.length();
 				while (start < overview.length() && Character.isWhitespace(overview.charAt(start))) {
@@ -189,7 +189,7 @@ public class OnDemandSeriesScreen extends Screen {
 			}
 		}
 		if (this.seasonButtons.isEmpty()) {
-			graphics.centeredText(
+			graphics.drawCenteredString(
 				this.font,
 				Component.translatable("gui.pixelreel.menu.loading"),
 				this.width / 2,
@@ -197,7 +197,7 @@ public class OnDemandSeriesScreen extends Screen {
 				GuiColors.TEXT_DIM
 			);
 		}
-		super.extractRenderState(graphics, mouseX, mouseY, partialTicks);
+		super.render(graphics, mouseX, mouseY, partialTicks);
 	}
 
 	@Override

@@ -6,12 +6,11 @@ import com.pixelreel.media.SubtitleTrack;
 import com.pixelreel.networking.ScreenAction;
 import java.util.ArrayList;
 import java.util.List;
-import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.narration.NarrationElementOutput;
 import net.minecraft.client.gui.screens.Screen;
-import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.network.chat.Component;
 
 /** subtitle picker this one kinda sucks needs work*/
@@ -39,7 +38,7 @@ public class SubtitlePickerScreen extends Screen {
 		this.addRenderableWidget(
 			Button.builder(Component.translatable("gui.pixelreel.jellyfin.back"), button -> {
 				if (this.minecraft != null) {
-					this.minecraft.gui.setScreen(this.parent);
+					this.minecraft.setScreen(this.parent);
 				}
 			}).bounds(this.width / 2 - 40, this.height - 28, 80, 20).build()
 		);
@@ -82,7 +81,7 @@ public class SubtitlePickerScreen extends Screen {
 			(float)track.index()
 		);
 		if (this.minecraft != null) {
-			this.minecraft.gui.setScreen(this.parent);
+			this.minecraft.setScreen(this.parent);
 		}
 	}
 
@@ -116,10 +115,10 @@ public class SubtitlePickerScreen extends Screen {
 	}
 
 	@Override
-	public void extractRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTicks) {
-		graphics.centeredText(this.font, this.title, this.width / 2, 12, GuiColors.TEXT);
+	public void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTicks) {
+		graphics.drawCenteredString(this.font, this.title, this.width / 2, 12, GuiColors.TEXT);
 		String current = this.display.getSubtitleLabel();
-		graphics.centeredText(
+		graphics.drawCenteredString(
 			this.font,
 			Component.translatable("gui.pixelreel.playback.subtitles_current", current),
 			this.width / 2,
@@ -127,7 +126,7 @@ public class SubtitlePickerScreen extends Screen {
 			GuiColors.TEXT_DIM
 		);
 		if (this.display.getSubtitleTracks().isEmpty()) {
-			graphics.centeredText(
+			graphics.drawCenteredString(
 				this.font,
 				Component.translatable("gui.pixelreel.playback.subtitles_none"),
 				this.width / 2,
@@ -135,7 +134,7 @@ public class SubtitlePickerScreen extends Screen {
 				GuiColors.TEXT_DIM
 			);
 		}
-		super.extractRenderState(graphics, mouseX, mouseY, partialTicks);
+		super.render(graphics, mouseX, mouseY, partialTicks);
 	}
 
 	@Override
@@ -188,25 +187,25 @@ public class SubtitlePickerScreen extends Screen {
 		}
 
 		@Override
-		public void onClick(MouseButtonEvent event, boolean doubled) {
+		public void onClick(double mouseX, double mouseY) {
 			this.onSelect.accept(this.track);
 		}
 
 		@Override
-		protected void extractWidgetRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTicks) {
+		protected void renderWidget(GuiGraphics graphics, int mouseX, int mouseY, float partialTicks) {
 			int x = this.getX();
 			int y = this.getY();
 			int fill = this.selected ? GuiColors.ROW_ACTIVE : (this.isHovered() ? GuiColors.ROW_HOVER : GuiColors.ROW);
 			graphics.fill(x, y, x + this.width, y + ROW_HEIGHT, fill);
 			var font = net.minecraft.client.Minecraft.getInstance().font;
 			int titleColor = this.selected ? GuiColors.ACCENT_WARM : GuiColors.TEXT;
-			graphics.text(font, Component.literal(this.track.displayLabel()), x + 10, y + 6, titleColor);
+			graphics.drawString(font, Component.literal(this.track.displayLabel()), x + 10, y + 6, titleColor);
 			String detail = this.track.detailLabel();
 			if (!detail.isEmpty()) {
-				graphics.text(font, Component.literal(detail), x + 10, y + 20, GuiColors.TEXT_DIM);
+				graphics.drawString(font, Component.literal(detail), x + 10, y + 20, GuiColors.TEXT_DIM);
 			}
 			if (this.selected) {
-				graphics.text(font, Component.literal("✓"), x + this.width - 18, y + 12, GuiColors.ACCENT_WARM);
+				graphics.drawString(font, Component.literal("✓"), x + this.width - 18, y + 12, GuiColors.ACCENT_WARM);
 			}
 		}
 

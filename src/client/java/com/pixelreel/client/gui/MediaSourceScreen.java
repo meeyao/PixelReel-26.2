@@ -10,7 +10,7 @@ import com.pixelreel.client.gui.tunarr.ChannelMenuScreen;
 import com.pixelreel.client.gui.tunarr.TunarrConfigScreen;
 import com.pixelreel.jellyfin.JellyfinStatus;
 import com.pixelreel.networking.ModNetworkPayloads;
-import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.screens.Screen;
@@ -48,7 +48,7 @@ public class MediaSourceScreen extends Screen {
 		this.liveButton = this.addRenderableWidget(
 			Button.builder(Component.translatable("gui.pixelreel.source.live"), button -> {
 				if (this.minecraft != null) {
-					this.minecraft.gui.setScreen(new ChannelMenuScreen(this.display));
+					this.minecraft.setScreen(new ChannelMenuScreen(this.display));
 				}
 			}).bounds(centreX - PANEL_WIDTH / 2, y, PANEL_WIDTH, mainH).build()
 		);
@@ -70,14 +70,14 @@ public class MediaSourceScreen extends Screen {
 		this.tunarrConfigButton = this.addRenderableWidget(
 			Button.builder(Component.translatable("gui.pixelreel.source.configure_tunarr"), button -> {
 				if (this.minecraft != null) {
-					this.minecraft.gui.setScreen(new TunarrConfigScreen(this));
+					this.minecraft.setScreen(new TunarrConfigScreen(this));
 				}
 			}).bounds(centreX - PANEL_WIDTH / 2, y, half, smallH).build()
 		);
 		this.jellyfinConfigButton = this.addRenderableWidget(
 			Button.builder(Component.translatable("gui.pixelreel.source.configure_jellyfin"), button -> {
 				if (this.minecraft != null) {
-					this.minecraft.gui.setScreen(new JellyfinConfigScreen(this));
+					this.minecraft.setScreen(new JellyfinConfigScreen(this));
 				}
 			}).bounds(centreX - PANEL_WIDTH / 2 + half + gap, y, half, smallH).build()
 		);
@@ -85,14 +85,14 @@ public class MediaSourceScreen extends Screen {
 		this.embyConfigButton = this.addRenderableWidget(
 			Button.builder(Component.translatable("gui.pixelreel.source.configure_emby"), button -> {
 				if (this.minecraft != null) {
-					this.minecraft.gui.setScreen(new EmbyConfigScreen(this));
+					this.minecraft.setScreen(new EmbyConfigScreen(this));
 				}
 			}).bounds(centreX - PANEL_WIDTH / 2, y, half, smallH).build()
 		);
 		this.plexConfigButton = this.addRenderableWidget(
 			Button.builder(Component.translatable("gui.pixelreel.source.configure_plex"), button -> {
 				if (this.minecraft != null) {
-					this.minecraft.gui.setScreen(new PlexConfigScreen(this));
+					this.minecraft.setScreen(new PlexConfigScreen(this));
 				}
 			}).bounds(centreX - PANEL_WIDTH / 2 + half + gap, y, half, smallH).build()
 		);
@@ -108,7 +108,7 @@ public class MediaSourceScreen extends Screen {
 			this.addRenderableWidget(
 				Button.builder(Component.translatable("gui.pixelreel.playback.open"), button -> {
 					if (this.minecraft != null) {
-						this.minecraft.gui.setScreen(new PlaybackControlScreen(this.display));
+						this.minecraft.setScreen(new PlaybackControlScreen(this.display));
 					}
 				}).bounds(centreX - PANEL_WIDTH / 2, y, PANEL_WIDTH, smallH).build()
 			);
@@ -171,9 +171,9 @@ public class MediaSourceScreen extends Screen {
 	}
 
 	@Override
-	public void extractRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTicks) {
-		super.extractRenderState(graphics, mouseX, mouseY, partialTicks);
-		graphics.centeredText(this.font, this.title, this.width / 2, 10, GuiColors.TEXT);
+	public void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTicks) {
+		super.render(graphics, mouseX, mouseY, partialTicks);
+		graphics.drawCenteredString(this.font, this.title, this.width / 2, 10, GuiColors.TEXT);
 		ClientMediaCache.Features features = ClientMediaCache.INSTANCE.features();
 		Component status;
 		int color = GuiColors.TEXT_DIM;
@@ -186,9 +186,9 @@ public class MediaSourceScreen extends Screen {
 				color = GuiColors.ERROR;
 			}
 		}
-		graphics.centeredText(this.font, status, this.width / 2, 22, color);
+		graphics.drawCenteredString(this.font, status, this.width / 2, 22, color);
 		if (this.display.isOnDemand() && this.display.hasChannel()) {
-			graphics.centeredText(
+			graphics.drawCenteredString(
 				this.font,
 				Component.translatable("gui.pixelreel.source.now_playing", truncate(this.display.getMediaTitle(), 40)),
 				this.width / 2,

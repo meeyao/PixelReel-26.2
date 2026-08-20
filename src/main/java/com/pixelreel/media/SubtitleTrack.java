@@ -1,11 +1,10 @@
 package com.pixelreel.media;
 
+import net.minecraft.nbt.CompoundTag;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import net.minecraft.world.level.storage.ValueInput;
-import net.minecraft.world.level.storage.ValueOutput;
 
 /** subtitle track */
 public record SubtitleTrack(
@@ -173,7 +172,7 @@ public record SubtitleTrack(
 		}
 	}
 
-	public static void writeList(ValueOutput output, String key, List<SubtitleTrack> tracks) {
+	public static void writeList(CompoundTag output, String key, List<SubtitleTrack> tracks) {
 		StringBuilder sb = new StringBuilder();
 		int count = 0;
 		for (SubtitleTrack track : tracks) {
@@ -189,8 +188,8 @@ public record SubtitleTrack(
 		output.putString(key, sb.toString());
 	}
 
-	public static List<SubtitleTrack> readList(ValueInput input, String key) {
-		String raw = input.getStringOr(key, "");
+	public static List<SubtitleTrack> readList(CompoundTag input, String key) {
+		String raw = input.contains(key) ? input.getString(key) : "";
 		if (raw.isBlank()) {
 			return List.of();
 		}

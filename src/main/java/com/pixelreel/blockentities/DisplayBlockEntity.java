@@ -9,7 +9,6 @@ import com.pixelreel.jellyfin.JellyfinItemKind;
 import com.pixelreel.jellyfin.JellyfinItemSummary;
 import com.pixelreel.media.MediaSource;
 import com.pixelreel.media.SubtitleTrack;
-import com.pixelreel.networking.MediaProxy;
 import com.pixelreel.registry.ModBlockEntities;
 import java.util.List;
 import net.minecraft.core.BlockPos;
@@ -21,10 +20,8 @@ import net.minecraft.network.protocol.game.ClientGamePacketListener;
 import net.minecraft.network.protocol.game.ClientboundBlockEntityDataPacket;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.level.storage.ValueInput;
-import net.minecraft.world.level.storage.ValueOutput;
 import net.minecraft.world.phys.Vec3;
-import org.jspecify.annotations.Nullable;
+import org.jetbrains.annotations.Nullable;
 
 /** server-auth one display */
 public class DisplayBlockEntity extends BlockEntity {
@@ -304,13 +301,10 @@ public class DisplayBlockEntity extends BlockEntity {
 	}
 
 	public boolean hasChannel() {
-		return !this.channelId.isEmpty() || !this.jellyfinItemId.isEmpty();
+		return !this.streamUrl.isEmpty() && (!this.channelId.isEmpty() || !this.jellyfinItemId.isEmpty());
 	}
 
 	public boolean shouldPlay() {
-		if (this.level != null && !this.level.isClientSide()) {
-			return this.powered && !this.suspended && !this.streamUrl.isEmpty() && this.hasChannel();
-		}
 		return this.powered && !this.suspended && this.hasChannel();
 	}
 
@@ -383,7 +377,6 @@ public class DisplayBlockEntity extends BlockEntity {
 		this.clearJellyfinFields();
 		this.hdrContent = false;
 		this.channelEpoch++;
-		this.revokePlaybackTickets();
 		this.markDirtyAndSync();
 	}
 
@@ -488,7 +481,6 @@ public class DisplayBlockEntity extends BlockEntity {
 		this.clearAutoplay();
 		this.channelEpoch++;
 		this.progressReportTicks = 0;
-		this.revokePlaybackTickets();
 		this.markDirtyAndSync();
 	}
 
@@ -497,7 +489,6 @@ public class DisplayBlockEntity extends BlockEntity {
 	}
 
 	public void applySubtitleSelection(int subtitleIndex, String subtitleUrl, @Nullable String newStreamUrl) {
-		String previousSubtitleUrl = this.subtitleFetchUrl;
 		this.selectedSubtitleIndex = subtitleIndex;
 		this.subtitleFetchUrl = clampLength(subtitleUrl == null ? "" : subtitleUrl, MAX_STREAM_URL);
 		if (newStreamUrl != null && !newStreamUrl.isBlank()) {
@@ -509,18 +500,7 @@ public class DisplayBlockEntity extends BlockEntity {
 				this.channelEpoch++;
 			}
 		}
-		if (!this.subtitleFetchUrl.equals(previousSubtitleUrl)) {
-			this.channelEpoch++;
-		}
-		this.revokePlaybackTickets();
 		this.markDirtyAndSync();
-	}
-
-	private void revokePlaybackTickets() {
-		if (this.level == null || this.level.isClientSide()) {
-			return;
-		}
-		MediaProxy.INSTANCE.revoke(MediaProxy.displayKey(this.level.dimension().identifier().toString(), this.worldPosition));
 	}
 
 	public int nextSubtitleIndex() {
@@ -699,14 +679,14 @@ public class DisplayBlockEntity extends BlockEntity {
 	}
 
 	@Override
-	protected void saveAdditional(ValueOutput output) {
-		super.saveAdditional(output);
+	protected void saveAdditional(CompoundTag output, HolderLookup.Provider registries) {
+		super.saveAdditional(output, registries);
 		output.putBoolean(KEY_POWERED, this.powered);
 		output.putBoolean(KEY_SUSPENDED, this.suspended);
 		output.putString(KEY_CHANNEL_ID, this.channelId);
 		output.putInt(KEY_CHANNEL_NUMBER, this.channelNumber);
 		output.putString(KEY_CHANNEL_NAME, this.channelName);
-		output.putString(KEY_STREAM_URL, "");
+		output.putString(KEY_STREAM_URL, this.streamUrl);
 		output.putFloat(KEY_VOLUME, this.volume);
 		output.putInt(KEY_EPOCH, this.channelEpoch);
 		output.putString(KEY_MEDIA_SOURCE, this.mediaSource.name());
@@ -719,7 +699,7 @@ public class DisplayBlockEntity extends BlockEntity {
 		output.putString(KEY_MEDIA_TITLE, this.mediaTitle);
 		output.putString(KEY_MEDIA_OVERVIEW, this.mediaOverview);
 		output.putInt(KEY_MEDIA_YEAR, this.mediaYear);
-		output.putString(KEY_MEDIA_IMAGE, "");
+		output.putString(KEY_MEDIA_IMAGE, this.mediaImageUrl);
 		output.putLong(KEY_POS_MS, this.currentPlaybackPositionMs());
 		output.putLong(KEY_DUR_MS, this.playbackDurationMs);
 		output.putBoolean(KEY_PAUSED, this.playbackPaused);
@@ -734,52 +714,52 @@ public class DisplayBlockEntity extends BlockEntity {
 		output.putBoolean(KEY_HDR, this.hdrContent);
 		output.putInt(KEY_SUB_INDEX, this.selectedSubtitleIndex);
 		SubtitleTrack.writeList(output, KEY_SUB_TRACKS, this.subtitleTracks);
-		output.putString(KEY_SUB_URL, "");
+		output.putString(KEY_SUB_URL, this.subtitleFetchUrl);
 		output.putInt(KEY_PLEX_MEDIA, this.plexMediaIndex);
 		output.putInt(KEY_PLEX_PART, this.plexPartIndex);
-		output.putString(KEY_PLEX_PART_KEY, "");
+		output.putString(KEY_PLEX_PART_KEY, this.plexPartKey);
 	}
 
 	@Override
-	protected void loadAdditional(ValueInput input) {
-		super.loadAdditional(input);
-		this.powered = input.getBooleanOr(KEY_POWERED, false);
-		this.suspended = input.getBooleanOr(KEY_SUSPENDED, false);
-		this.channelId = clampLength(input.getStringOr(KEY_CHANNEL_ID, ""), Channel.MAX_TEXT);
-		this.channelNumber = Math.max(0, input.getIntOr(KEY_CHANNEL_NUMBER, 0));
-		this.channelName = clampLength(input.getStringOr(KEY_CHANNEL_NAME, ""), Channel.MAX_TEXT);
-		this.streamUrl = clampLength(input.getStringOr(KEY_STREAM_URL, ""), MAX_STREAM_URL);
-		this.volume = Math.clamp(input.getFloatOr(KEY_VOLUME, (float)ConfigManager.get().defaultDisplayVolume), 0.0F, 1.0F);
-		this.channelEpoch = input.getIntOr(KEY_EPOCH, 0);
-		this.mediaSource = MediaSource.byName(input.getStringOr(KEY_MEDIA_SOURCE, MediaSource.TUNARR.name()));
-		this.jellyfinItemId = clampLength(input.getStringOr(KEY_JF_ITEM_ID, ""), Channel.MAX_TEXT);
-		this.jellyfinKind = parseKind(input.getStringOr(KEY_JF_KIND, ""));
-		this.jellyfinSeriesId = clampLength(input.getStringOr(KEY_JF_SERIES_ID, ""), Channel.MAX_TEXT);
-		this.jellyfinSeasonId = clampLength(input.getStringOr(KEY_JF_SEASON_ID, ""), Channel.MAX_TEXT);
-		this.seasonNumber = Math.max(0, input.getIntOr(KEY_JF_SEASON, 0));
-		this.episodeNumber = Math.max(0, input.getIntOr(KEY_JF_EPISODE, 0));
-		this.mediaTitle = clampLength(input.getStringOr(KEY_MEDIA_TITLE, ""), Channel.MAX_TEXT);
-		this.mediaOverview = clampLength(input.getStringOr(KEY_MEDIA_OVERVIEW, ""), MAX_OVERVIEW);
-		this.mediaYear = Math.max(0, input.getIntOr(KEY_MEDIA_YEAR, 0));
-		this.mediaImageUrl = clampLength(input.getStringOr(KEY_MEDIA_IMAGE, ""), MAX_STREAM_URL);
-		this.playbackPositionMs = Math.max(0L, input.getLongOr(KEY_POS_MS, 0L));
-		this.playbackDurationMs = Math.max(0L, input.getLongOr(KEY_DUR_MS, 0L));
-		this.playbackPaused = input.getBooleanOr(KEY_PAUSED, false);
-		this.playbackAnchorMillis = input.getLongOr(KEY_ANCHOR, this.playbackPaused ? 0L : System.currentTimeMillis());
-		this.controllingPlayer = clampLength(input.getStringOr(KEY_CONTROLLER, ""), Channel.MAX_TEXT);
-		this.playSessionId = clampLength(input.getStringOr(KEY_PLAY_SESSION, ""), Channel.MAX_TEXT);
-		this.jellyfinMediaSourceId = clampLength(input.getStringOr(KEY_MEDIA_SOURCE_ID, ""), Channel.MAX_TEXT);
-		this.nextEpisodeItemId = clampLength(input.getStringOr(KEY_NEXT_ID, ""), Channel.MAX_TEXT);
-		this.nextEpisodeTitle = clampLength(input.getStringOr(KEY_NEXT_TITLE, ""), Channel.MAX_TEXT);
-		this.autoplayAtMillis = Math.max(0L, input.getLongOr(KEY_AUTOPLAY_AT, 0L));
-		this.startPositionMs = Math.max(0L, input.getLongOr(KEY_START_MS, this.playbackPositionMs));
-		this.hdrContent = input.getBooleanOr(KEY_HDR, false);
-		this.selectedSubtitleIndex = input.getIntOr(KEY_SUB_INDEX, -1);
+	protected void loadAdditional(CompoundTag input, HolderLookup.Provider registries) {
+		super.loadAdditional(input, registries);
+		this.powered = input.contains(KEY_POWERED) ? input.getBoolean(KEY_POWERED) : false;
+		this.suspended = input.contains(KEY_SUSPENDED) ? input.getBoolean(KEY_SUSPENDED) : false;
+		this.channelId = clampLength(input.contains(KEY_CHANNEL_ID) ? input.getString(KEY_CHANNEL_ID) : "", Channel.MAX_TEXT);
+		this.channelNumber = Math.max(0, input.contains(KEY_CHANNEL_NUMBER) ? input.getInt(KEY_CHANNEL_NUMBER) : 0);
+		this.channelName = clampLength(input.contains(KEY_CHANNEL_NAME) ? input.getString(KEY_CHANNEL_NAME) : "", Channel.MAX_TEXT);
+		this.streamUrl = clampLength(input.contains(KEY_STREAM_URL) ? input.getString(KEY_STREAM_URL) : "", MAX_STREAM_URL);
+		this.volume = Math.clamp(input.contains(KEY_VOLUME) ? input.getFloat(KEY_VOLUME) : (float)ConfigManager.get().defaultDisplayVolume, 0.0F, 1.0F);
+		this.channelEpoch = input.contains(KEY_EPOCH) ? input.getInt(KEY_EPOCH) : 0;
+		this.mediaSource = MediaSource.byName(input.contains(KEY_MEDIA_SOURCE) ? input.getString(KEY_MEDIA_SOURCE) : MediaSource.TUNARR.name());
+		this.jellyfinItemId = clampLength(input.contains(KEY_JF_ITEM_ID) ? input.getString(KEY_JF_ITEM_ID) : "", Channel.MAX_TEXT);
+		this.jellyfinKind = parseKind(input.contains(KEY_JF_KIND) ? input.getString(KEY_JF_KIND) : "");
+		this.jellyfinSeriesId = clampLength(input.contains(KEY_JF_SERIES_ID) ? input.getString(KEY_JF_SERIES_ID) : "", Channel.MAX_TEXT);
+		this.jellyfinSeasonId = clampLength(input.contains(KEY_JF_SEASON_ID) ? input.getString(KEY_JF_SEASON_ID) : "", Channel.MAX_TEXT);
+		this.seasonNumber = Math.max(0, input.contains(KEY_JF_SEASON) ? input.getInt(KEY_JF_SEASON) : 0);
+		this.episodeNumber = Math.max(0, input.contains(KEY_JF_EPISODE) ? input.getInt(KEY_JF_EPISODE) : 0);
+		this.mediaTitle = clampLength(input.contains(KEY_MEDIA_TITLE) ? input.getString(KEY_MEDIA_TITLE) : "", Channel.MAX_TEXT);
+		this.mediaOverview = clampLength(input.contains(KEY_MEDIA_OVERVIEW) ? input.getString(KEY_MEDIA_OVERVIEW) : "", MAX_OVERVIEW);
+		this.mediaYear = Math.max(0, input.contains(KEY_MEDIA_YEAR) ? input.getInt(KEY_MEDIA_YEAR) : 0);
+		this.mediaImageUrl = clampLength(input.contains(KEY_MEDIA_IMAGE) ? input.getString(KEY_MEDIA_IMAGE) : "", MAX_STREAM_URL);
+		this.playbackPositionMs = Math.max(0L, input.contains(KEY_POS_MS) ? input.getLong(KEY_POS_MS) : 0L);
+		this.playbackDurationMs = Math.max(0L, input.contains(KEY_DUR_MS) ? input.getLong(KEY_DUR_MS) : 0L);
+		this.playbackPaused = input.contains(KEY_PAUSED) ? input.getBoolean(KEY_PAUSED) : false;
+		this.playbackAnchorMillis = input.contains(KEY_ANCHOR) ? input.getLong(KEY_ANCHOR) : this.playbackPaused ? 0L : System.currentTimeMillis();
+		this.controllingPlayer = clampLength(input.contains(KEY_CONTROLLER) ? input.getString(KEY_CONTROLLER) : "", Channel.MAX_TEXT);
+		this.playSessionId = clampLength(input.contains(KEY_PLAY_SESSION) ? input.getString(KEY_PLAY_SESSION) : "", Channel.MAX_TEXT);
+		this.jellyfinMediaSourceId = clampLength(input.contains(KEY_MEDIA_SOURCE_ID) ? input.getString(KEY_MEDIA_SOURCE_ID) : "", Channel.MAX_TEXT);
+		this.nextEpisodeItemId = clampLength(input.contains(KEY_NEXT_ID) ? input.getString(KEY_NEXT_ID) : "", Channel.MAX_TEXT);
+		this.nextEpisodeTitle = clampLength(input.contains(KEY_NEXT_TITLE) ? input.getString(KEY_NEXT_TITLE) : "", Channel.MAX_TEXT);
+		this.autoplayAtMillis = Math.max(0L, input.contains(KEY_AUTOPLAY_AT) ? input.getLong(KEY_AUTOPLAY_AT) : 0L);
+		this.startPositionMs = Math.max(0L, input.contains(KEY_START_MS) ? input.getLong(KEY_START_MS) : this.playbackPositionMs);
+		this.hdrContent = input.contains(KEY_HDR) ? input.getBoolean(KEY_HDR) : false;
+		this.selectedSubtitleIndex = input.contains(KEY_SUB_INDEX) ? input.getInt(KEY_SUB_INDEX) : -1;
 		this.subtitleTracks = SubtitleTrack.readList(input, KEY_SUB_TRACKS);
-		this.subtitleFetchUrl = clampLength(input.getStringOr(KEY_SUB_URL, ""), MAX_STREAM_URL);
-		this.plexMediaIndex = Math.max(0, input.getIntOr(KEY_PLEX_MEDIA, 0));
-		this.plexPartIndex = Math.max(0, input.getIntOr(KEY_PLEX_PART, 0));
-		this.plexPartKey = clampLength(input.getStringOr(KEY_PLEX_PART_KEY, ""), MAX_STREAM_URL);
+		this.subtitleFetchUrl = clampLength(input.contains(KEY_SUB_URL) ? input.getString(KEY_SUB_URL) : "", MAX_STREAM_URL);
+		this.plexMediaIndex = Math.max(0, input.contains(KEY_PLEX_MEDIA) ? input.getInt(KEY_PLEX_MEDIA) : 0);
+		this.plexPartIndex = Math.max(0, input.contains(KEY_PLEX_PART) ? input.getInt(KEY_PLEX_PART) : 0);
+		this.plexPartKey = clampLength(input.contains(KEY_PLEX_PART_KEY) ? input.getString(KEY_PLEX_PART_KEY) : "", MAX_STREAM_URL);
 	}
 
 	private static JellyfinItemKind parseKind(String raw) {
@@ -802,7 +782,9 @@ public class DisplayBlockEntity extends BlockEntity {
 
 	@Override
 	public CompoundTag getUpdateTag(HolderLookup.Provider registries) {
-		return this.saveCustomOnly(registries);
+		CompoundTag tag = new CompoundTag();
+		this.saveAdditional(tag, registries);
+		return tag;
 	}
 
 	@Override

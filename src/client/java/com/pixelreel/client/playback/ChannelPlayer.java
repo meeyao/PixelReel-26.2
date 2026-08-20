@@ -10,7 +10,7 @@ import java.nio.ByteBuffer;
 import java.util.concurrent.atomic.AtomicBoolean;
 import net.minecraft.client.Minecraft;
 import net.minecraft.sounds.SoundSource;
-import org.jspecify.annotations.Nullable;
+import org.jetbrains.annotations.Nullable;
 import uk.co.caprica.vlcj.factory.MediaPlayerFactory;
 import uk.co.caprica.vlcj.player.base.MediaPlayer;
 import uk.co.caprica.vlcj.player.base.MediaPlayerEventAdapter;
@@ -288,7 +288,7 @@ public final class ChannelPlayer implements AutoCloseable {
 		this.volumeDirty.set(true);
 		this.startSeekApplied = this.initialStartMs <= 0L;
 		try {
-			int caching = Math.clamp(ConfigManager.get().streamCachingMillis, 0, 20000);
+			int caching = Math.clamp(ConfigManager.get().streamCachingMillis, 0, 10000);
 			boolean started = current.media().play(
 				this.url,
 				":network-caching=" + caching,
@@ -341,9 +341,9 @@ public final class ChannelPlayer implements AutoCloseable {
 		EmbeddedMediaPlayer current = this.player;
 		this.player = null;
 		if (current != null) {
+			// Do not mute/setVolume(0) here — libVLC audio output is often process-global, so
+			// muting one player can silence every other active stream from the same factory.
 			try {
-				current.audio().setMute(true);
-				current.audio().setVolume(0);
 				current.controls().stop();
 			} catch (Throwable ignored) {
 			}
@@ -359,6 +359,12 @@ public final class ChannelPlayer implements AutoCloseable {
 		this.videoTexture.close();
 	}
 
+	/** Force the next tickAudio call to push volume to libVLC again. */
+	public void markVolumeDirty() {
+		this.volumeDirty.set(true);
+		this.lastAppliedVolume = Integer.MIN_VALUE;
+	}
+
 	private void onVideoFrame(ByteBuffer buffer, int width, int height, float displayAspect) {
 		this.videoTexture.submitFrame(buffer, width, height, displayAspect, this.subtitleOverlay.activeText());
 		this.firstFrameSeen.set(true);
@@ -367,7 +373,7 @@ public final class ChannelPlayer implements AutoCloseable {
 	private final class FrameFormatCallback implements BufferFormatCallback {
 		@Override
 		public BufferFormat getBufferFormat(int sourceWidth, int sourceHeight) {
-			int cap = ConfigManager.get().maximumVideoResolution;
+			int cap = Math.min(1280, ConfigManager.get().maximumVideoResolution);
 			int width = sourceWidth;
 			int height = sourceHeight;
 			if (width <= 0 || height <= 0) {

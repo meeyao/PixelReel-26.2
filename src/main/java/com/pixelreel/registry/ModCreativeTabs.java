@@ -1,7 +1,7 @@
 package com.pixelreel.registry;
 
 import com.pixelreel.PixelReel;
-import net.fabricmc.fabric.api.creativetab.v1.FabricCreativeModeTab;
+import net.fabricmc.fabric.api.itemgroup.v1.FabricItemGroup;
 import net.minecraft.core.Registry;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;
@@ -20,7 +20,7 @@ public final class ModCreativeTabs {
 		Registry.register(
 			BuiltInRegistries.CREATIVE_MODE_TAB,
 			PIXEL_REEL,
-			FabricCreativeModeTab.builder()
+			FabricItemGroup.builder()
 				.title(Component.translatable("itemGroup.pixelreel.pixelreel"))
 				.icon(() -> new ItemStack(ModItems.WALL_TELEVISION))
 				.displayItems((parameters, output) -> ModItems.TAB_CONTENTS.forEach(output::accept))

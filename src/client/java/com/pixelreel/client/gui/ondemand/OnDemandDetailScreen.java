@@ -3,21 +3,19 @@ package com.pixelreel.client.gui.ondemand;
 import com.pixelreel.blockentities.DisplayBlockEntity;
 import com.pixelreel.client.ClientMediaCache;
 import com.pixelreel.client.ClientNetworking;
-import com.pixelreel.client.ClientPosterUrlCache;
 import com.pixelreel.client.gui.GuiColors;
+import com.pixelreel.client.gui.shared.SharedPoster;
 import com.pixelreel.client.gui.shared.TimeFormat;
 import com.pixelreel.client.texture.PosterCache;
 import com.pixelreel.jellyfin.JellyfinItemSummary;
 import com.pixelreel.networking.ModNetworkPayloads;
 import com.pixelreel.ondemand.OnDemandProvider;
 import java.util.List;
-import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.screens.Screen;
-import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.network.chat.Component;
-import net.minecraft.resources.Identifier;
-import org.jspecify.annotations.Nullable;
+import org.jetbrains.annotations.Nullable;
 
 /** this handles the detials of the content like movies and tv shows, also adds play and resume buttons. */
 public class OnDemandDetailScreen extends Screen {
@@ -68,7 +66,7 @@ public class OnDemandDetailScreen extends Screen {
 		this.addRenderableWidget(
 			Button.builder(Component.translatable("gui.pixelreel.jellyfin.back"), button -> {
 				if (this.minecraft != null) {
-					this.minecraft.gui.setScreen(this.parent);
+					this.minecraft.setScreen(this.parent);
 				}
 			}).bounds(centre - 40, y - 24, 80, 20).build()
 		);
@@ -97,47 +95,34 @@ public class OnDemandDetailScreen extends Screen {
 	}
 
 	@Override
-	public void extractRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTicks) {
-		super.extractRenderState(graphics, mouseX, mouseY, partialTicks);
+	public void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTicks) {
+		super.render(graphics, mouseX, mouseY, partialTicks);
 		int posterX = this.width / 2 - 160;
 		int posterY = 28;
 		int posterW = 96;
 		int posterH = 144;
 		graphics.fill(posterX, posterY, posterX + posterW, posterY + posterH, 0xFF06080A);
-		String posterUrl = ClientPosterUrlCache.INSTANCE.url(this.provider, this.item.id());
-		PosterCache.Poster poster = PosterCache.INSTANCE.getByUrl(this.item.id(), posterUrl);
+		PosterCache.Poster poster = PosterCache.INSTANCE.getByUrl(this.item.id(), this.item.imageUrl());
 		if (poster.state() == PosterCache.State.READY && poster.texture() != null) {
-			Identifier texture = poster.texture();
-			graphics.blit(
-				RenderPipelines.GUI_TEXTURED,
-				texture,
-				posterX,
-				posterY,
-				0.0F,
-				0.0F,
-				posterW,
-				posterH,
-				poster.width(),
-				poster.height(),
-				poster.width(),
-				poster.height()
-			);
+			SharedPoster.blitCover(graphics, poster, posterX, posterY, posterW, posterH);
+		} else {
+			SharedPoster.blitPlaceholder(graphics, PosterCache.PLACEHOLDER, posterX, posterY, posterW, posterH);
 		}
 
 		int textX = posterX + posterW + 16;
-		graphics.text(this.font, Component.literal(this.item.title()), textX, posterY, GuiColors.TEXT);
+		graphics.drawString(this.font, Component.literal(this.item.title()), textX, posterY, GuiColors.TEXT);
 		int lineY = posterY + 14;
 		if (this.item.productionYear() > 0) {
-			graphics.text(this.font, Component.translatable("gui.pixelreel.jellyfin.year", this.item.productionYear()), textX, lineY, GuiColors.TEXT_DIM);
+			graphics.drawString(this.font, Component.translatable("gui.pixelreel.jellyfin.year", this.item.productionYear()), textX, lineY, GuiColors.TEXT_DIM);
 			lineY += 12;
 		}
 		long runtimeMin = this.item.runtimeMs() / 60_000L;
 		if (runtimeMin > 0L) {
-			graphics.text(this.font, Component.translatable("gui.pixelreel.jellyfin.runtime", runtimeMin), textX, lineY, GuiColors.TEXT_DIM);
+			graphics.drawString(this.font, Component.translatable("gui.pixelreel.jellyfin.runtime", runtimeMin), textX, lineY, GuiColors.TEXT_DIM);
 			lineY += 12;
 		}
 		if (this.item.hasResume()) {
-			graphics.text(
+			graphics.drawString(
 				this.font,
 				Component.translatable("gui.pixelreel.jellyfin.resume_at", TimeFormat.format(this.item.resumePositionMs())),
 				textX,
@@ -157,7 +142,7 @@ public class OnDemandDetailScreen extends Screen {
 			if (chunk.isEmpty()) {
 				break;
 			}
-			graphics.text(this.font, Component.literal(chunk), textX, lineY, GuiColors.TEXT_DIM);
+			graphics.drawString(this.font, Component.literal(chunk), textX, lineY, GuiColors.TEXT_DIM);
 			lineY += 10;
 			start += chunk.length();
 			while (start < overview.length() && Character.isWhitespace(overview.charAt(start))) {

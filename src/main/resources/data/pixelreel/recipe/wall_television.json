@@ -1,18 +1,24 @@
 {
-	"type": "minecraft:crafting_shaped",
-	"category": "misc",
-	"pattern": [
-		"GGG",
-		"GRG",
-		"III"
-	],
-	"key": {
-		"I": "minecraft:iron_ingot",
-		"G": "minecraft:glass",
-		"R": "minecraft:redstone"
-	},
-	"result": {
-		"id": "pixelreel:wall_television",
-		"count": 1
-	}
+    "type":  "minecraft:crafting_shaped",
+    "category":  "misc",
+    "pattern":  [
+                    "GGG",
+                    "GRG",
+                    "III"
+                ],
+    "key":  {
+                "G":  {
+                          "item":  "minecraft:glass"
+                      },
+                "R":  {
+                          "item":  "minecraft:redstone"
+                      },
+                "I":  {
+                          "item":  "minecraft:iron_ingot"
+                      }
+            },
+    "result":  {
+                   "id":  "pixelreel:wall_television",
+                   "count":  1
+               }
 }

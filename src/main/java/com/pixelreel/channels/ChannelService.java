@@ -25,13 +25,13 @@ import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import org.jspecify.annotations.Nullable;
+import org.jetbrains.annotations.Nullable;
 
 /** server-side channel */
 public final class ChannelService {
 	public static final ChannelService INSTANCE = new ChannelService();
 
-	private final ExecutorService executor = Executors.newFixedThreadPool(16, runnable -> {
+	private final ExecutorService executor = Executors.newCachedThreadPool(runnable -> {
 		Thread thread = new Thread(runnable, "pixelreel-http");
 		thread.setDaemon(true);
 		return thread;

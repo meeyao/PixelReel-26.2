@@ -1,6 +1,6 @@
 package com.pixelreel.channels;
 
-import org.jspecify.annotations.Nullable;
+import org.jetbrains.annotations.Nullable;
 
 /** one XMLTV handler */
 public record Programme(String title, String episode, long startEpochSeconds, long endEpochSeconds, String iconUrl) {

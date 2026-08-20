@@ -1,19 +1,27 @@
 {
-	"type": "minecraft:crafting_shaped",
-	"category": "misc",
-	"pattern": [
-		"WWW",
-		"QRQ",
-		"III"
-	],
-	"key": {
-		"I": "minecraft:iron_ingot",
-		"W": "minecraft:white_wool",
-		"Q": "minecraft:quartz",
-		"R": "minecraft:redstone"
-	},
-	"result": {
-		"id": "pixelreel:curved_cinema_screen",
-		"count": 1
-	}
+    "type":  "minecraft:crafting_shaped",
+    "category":  "misc",
+    "pattern":  [
+                    "WWW",
+                    "QRQ",
+                    "III"
+                ],
+    "key":  {
+                "Q":  {
+                          "item":  "minecraft:quartz"
+                      },
+                "W":  {
+                          "item":  "minecraft:white_wool"
+                      },
+                "R":  {
+                          "item":  "minecraft:redstone"
+                      },
+                "I":  {
+                          "item":  "minecraft:iron_ingot"
+                      }
+            },
+    "result":  {
+                   "id":  "pixelreel:curved_cinema_screen",
+                   "count":  1
+               }
 }
