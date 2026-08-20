@@ -2,7 +2,7 @@
 
 Fabric mod for **Minecraft Java Edition 1.20.1** that lets you place televisions and cinema screens in your world and watch **live TV** and **on-demand media** together with friends.
 
-Live channels come from a Tunarr (or any M3U + XMLTV) playlist. Movies and shows can come from **Jellyfin**, **Emby**, or **Plex**. Each display keeps its own channel or title, multiple screens can play at once, and audio is positional.
+Live channels come from a Tunarr (or any M3U + XMLTV) playlist. Movies and shows can come from **Jellyfin**, **Emby**, or **Plex**. Each display keeps its own channel or title, multiple screens can play at once, and audio is positional. **Audio Zones** let you define world regions so nearby screens don't bleed audio into each other.
 
 ## Security
 
@@ -248,7 +248,37 @@ Most screen actions use these commands
 /tv volume <0-100>       per-display volume
 /tv rebuild              rebuild screen collision without touching builds
 /tv jellyfin status|refresh|configure
+
+/tv zone mark            mark first corner of a zone
+/tv zone set <name>      stand at opposite corner and create zone
+/tv zone claim <name>    look at display, assign to zone
+/tv zone here            auto-assign display to zone you're in
+/tv zone status          show which zone you're in
+/tv zone list            list all zones
+/tv zone clear           delete all zones
+/tv zone cancel          cancel zone marking
 ```
+
+## Audio Zones
+
+Audio Zones let you define rectangular regions in the world. Displays assigned to a zone only produce **audio** when a player is standing inside that zone. Video always renders regardless — you'll see every screen playing, but you'll only *hear* the ones in your current zone.
+
+### Setup
+
+1. Stand at one corner of the area and run `/tv zone mark`.
+2. Walk to the opposite corner and run `/tv zone set livingroom` (or any name).
+3. Look at a display and run `/tv zone claim livingroom` to assign it.
+4. Walk into the zone — you should now hear that display's audio.
+5. Walk out — audio mutes, video keeps playing.
+
+### Behavior
+
+- **Unassigned displays** (no zone): heard by everyone within range.
+- **Assigned displays** (has zone): only heard when the player is inside that zone.
+- **Video** always renders for all displays within range, regardless of zone membership.
+- **Pixel Glasses** override zone muting — you always hear full audio while wearing them.
+
+Zone data is saved to `config/pixelreel-zones.json` and persists across restarts.
 
 ## Multiplayer
 
@@ -280,6 +310,8 @@ After a server restart, active playback URLs are intentionally not restored from
 | Visual playback handling | Done | Letterboxing, subtitle overlay, HDR tone mapping. |
 | Pixel Glasses | Done | Fullscreen overlay for a nearby playing screen. |
 | Security hardening | In progress | Known leak paths are blocked and checked by `securityAudit`; broader review is still welcome. |
+| Audio Zones | Done | Rectangular world regions for spatial audio isolation between displays. |
+| Unlimited screens | Done | Raised `maxSimultaneousChannels` cap to 256 for multi-screen setups. |
 
 ### Planned Work
 
