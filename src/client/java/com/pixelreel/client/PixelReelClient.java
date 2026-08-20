@@ -13,7 +13,6 @@ import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
-import net.fabricmc.fabric.api.client.rendering.v1.HudRenderCallback;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.blockentity.BlockEntityRenderers;
 import net.minecraft.core.BlockPos;
@@ -28,7 +27,6 @@ public class PixelReelClient implements ClientModInitializer {
 		ClientNetworking.register();
 		GlassesControls.register();
 		BlockEntityRenderers.register(ModBlockEntities.DISPLAY, DisplayBlockEntityRenderer::new);
-		HudRenderCallback.EVENT.register(GlassesOverlay::render);
 
 		ClientBridge.setHandler(new ClientBridge.Handler() {
 			@Override

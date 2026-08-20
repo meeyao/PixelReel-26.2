@@ -13,6 +13,7 @@ public class GuiMixin {
 	@Inject(method = "render", at = @At("HEAD"), cancellable = true)
 	private void pixelreel$hideHudWhileGlasses(GuiGraphics graphics, float deltaTracker, CallbackInfo ci) {
 		if (GlassesOverlay.shouldHideHud()) {
+			GlassesOverlay.render(graphics, deltaTracker);
 			ci.cancel();
 		}
 	}
