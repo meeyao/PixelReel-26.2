@@ -143,10 +143,27 @@ public class DisplayBlockEntityRenderer implements BlockEntityRenderer<DisplayBl
 		return FittedPicture.full(new Sheet(screen.left() + inset, screen.bottom(), screen.right() - inset, screen.top()));
 	}
 
-	private record FittedPicture(Sheet sheet, float uMin, float uMax, float vMin, float vMax) {
+	private static final class FittedPicture {
+		private final Sheet sheet;
+		private final float uMin, uMax, vMin, vMax;
+
+		FittedPicture(Sheet sheet, float uMin, float uMax, float vMin, float vMax) {
+			this.sheet = sheet;
+			this.uMin = uMin;
+			this.uMax = uMax;
+			this.vMin = vMin;
+			this.vMax = vMax;
+		}
+
 		static FittedPicture full(Sheet sheet) {
 			return new FittedPicture(sheet, 0.0F, 1.0F, 0.0F, 1.0F);
 		}
+
+		Sheet sheet() { return sheet; }
+		float uMin() { return uMin; }
+		float uMax() { return uMax; }
+		float vMin() { return vMin; }
+		float vMax() { return vMax; }
 	}
 
 	private static void submitSheet(
@@ -261,7 +278,8 @@ public class DisplayBlockEntityRenderer implements BlockEntityRenderer<DisplayBl
 			.uv(u, v)
 			.overlayCoords(OverlayTexture.NO_OVERLAY)
 			.uv2(packedLight)
-			.normal(pose.normal(), normalX, 0.0F, normalZ);
+			.normal(pose.normal(), normalX, 0.0F, normalZ)
+			.endVertex();
 	}
 
 	@Override
@@ -274,13 +292,21 @@ public class DisplayBlockEntityRenderer implements BlockEntityRenderer<DisplayBl
 		return 128;
 	}
 
-	private record Sheet(float left, float bottom, float right, float top) {
-		float width() {
-			return this.right - this.left;
+	private static final class Sheet {
+		private final float left, bottom, right, top;
+
+		Sheet(float left, float bottom, float right, float top) {
+			this.left = left;
+			this.bottom = bottom;
+			this.right = right;
+			this.top = top;
 		}
 
-		float height() {
-			return this.top - this.bottom;
-		}
+		float left() { return left; }
+		float bottom() { return bottom; }
+		float right() { return right; }
+		float top() { return top; }
+		float width() { return this.right - this.left; }
+		float height() { return this.top - this.bottom; }
 	}
 }

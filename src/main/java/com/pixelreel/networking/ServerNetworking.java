@@ -36,85 +36,91 @@ public final class ServerNetworking {
 		ServerPlayNetworking.registerGlobalReceiver(
 			ModNetworkPayloads.ScreenControl.ID, (server, player, handler, buf, sender) -> {
 				ModNetworkPayloads.ScreenControl payload = ModNetworkPayloads.ScreenControl.readFromBuf(buf);
-				handleControl(payload, player);
+				server.execute(() -> handleControl(payload, player));
 			}
 		);
 		ServerPlayNetworking.registerGlobalReceiver(
 			ModNetworkPayloads.ScreenTune.ID, (server, player, handler, buf, sender) -> {
 				ModNetworkPayloads.ScreenTune payload = ModNetworkPayloads.ScreenTune.readFromBuf(buf);
-				handleTune(payload, player);
+				server.execute(() -> handleTune(payload, player));
 			}
 		);
 		ServerPlayNetworking.registerGlobalReceiver(
 			ModNetworkPayloads.RequestChannels.ID, (server, player, handler, buf, sender) -> {
 				ModNetworkPayloads.RequestChannels payload = ModNetworkPayloads.RequestChannels.readFromBuf(buf);
-				sendChannelList(player, payload.forceRefresh());
+				server.execute(() -> sendChannelList(player, payload.forceRefresh()));
 			}
 		);
 		ServerPlayNetworking.registerGlobalReceiver(
-			ModNetworkPayloads.RequestMediaFeatures.ID, (server, player, handler, buf, sender) -> sendMediaFeatures(player)
+			ModNetworkPayloads.RequestMediaFeatures.ID, (server, player, handler, buf, sender) ->
+				server.execute(() -> sendMediaFeatures(player))
 		);
 		ServerPlayNetworking.registerGlobalReceiver(
 			ModNetworkPayloads.RequestJellyfinBrowse.ID, (server, player, handler, buf, sender) -> {
 				ModNetworkPayloads.RequestJellyfinBrowse payload = ModNetworkPayloads.RequestJellyfinBrowse.readFromBuf(buf);
-				handleBrowse(payload, player);
+				server.execute(() -> handleBrowse(payload, player));
 			}
 		);
 		ServerPlayNetworking.registerGlobalReceiver(
 			ModNetworkPayloads.RequestJellyfinChildren.ID, (server, player, handler, buf, sender) -> {
 				ModNetworkPayloads.RequestJellyfinChildren payload = ModNetworkPayloads.RequestJellyfinChildren.readFromBuf(buf);
-				handleChildren(payload, player);
+				server.execute(() -> handleChildren(payload, player));
 			}
 		);
 		ServerPlayNetworking.registerGlobalReceiver(
 			ModNetworkPayloads.ScreenPlayJellyfin.ID, (server, player, handler, buf, sender) -> {
 				ModNetworkPayloads.ScreenPlayJellyfin payload = ModNetworkPayloads.ScreenPlayJellyfin.readFromBuf(buf);
-				handlePlayJellyfin(payload, player);
+				server.execute(() -> handlePlayJellyfin(payload, player));
 			}
 		);
 		ServerPlayNetworking.registerGlobalReceiver(
 			ModNetworkPayloads.ReportMediaEnded.ID, (server, player, handler, buf, sender) -> {
 				ModNetworkPayloads.ReportMediaEnded payload = ModNetworkPayloads.ReportMediaEnded.readFromBuf(buf);
-				handleMediaEnded(payload, player);
+				server.execute(() -> handleMediaEnded(payload, player));
 			}
 		);
 		ServerPlayNetworking.registerGlobalReceiver(
-			ModNetworkPayloads.RequestJellyfinConfig.ID, (server, player, handler, buf, sender) -> handleRequestJellyfinConfig(player)
+			ModNetworkPayloads.RequestJellyfinConfig.ID, (server, player, handler, buf, sender) ->
+				server.execute(() -> handleRequestJellyfinConfig(player))
 		);
 		ServerPlayNetworking.registerGlobalReceiver(
 			ModNetworkPayloads.UpdateJellyfinConfig.ID, (server, player, handler, buf, sender) -> {
 				ModNetworkPayloads.UpdateJellyfinConfig payload = ModNetworkPayloads.UpdateJellyfinConfig.readFromBuf(buf);
-				handleUpdateJellyfinConfig(payload, player);
+				server.execute(() -> handleUpdateJellyfinConfig(payload, player));
 			}
 		);
 		ServerPlayNetworking.registerGlobalReceiver(
-			ModNetworkPayloads.RequestEmbyConfig.ID, (server, player, handler, buf, sender) -> handleRequestEmbyConfig(player)
+			ModNetworkPayloads.RequestEmbyConfig.ID, (server, player, handler, buf, sender) ->
+				server.execute(() -> handleRequestEmbyConfig(player))
 		);
 		ServerPlayNetworking.registerGlobalReceiver(
 			ModNetworkPayloads.UpdateEmbyConfig.ID, (server, player, handler, buf, sender) -> {
 				ModNetworkPayloads.UpdateEmbyConfig payload = ModNetworkPayloads.UpdateEmbyConfig.readFromBuf(buf);
-				handleUpdateEmbyConfig(payload, player);
+				server.execute(() -> handleUpdateEmbyConfig(payload, player));
 			}
 		);
 		ServerPlayNetworking.registerGlobalReceiver(
-			ModNetworkPayloads.RequestPlexConfig.ID, (server, player, handler, buf, sender) -> handleRequestPlexConfig(player)
+			ModNetworkPayloads.RequestPlexConfig.ID, (server, player, handler, buf, sender) ->
+				server.execute(() -> handleRequestPlexConfig(player))
 		);
 		ServerPlayNetworking.registerGlobalReceiver(
 			ModNetworkPayloads.UpdatePlexConfig.ID, (server, player, handler, buf, sender) -> {
 				ModNetworkPayloads.UpdatePlexConfig payload = ModNetworkPayloads.UpdatePlexConfig.readFromBuf(buf);
-				handleUpdatePlexConfig(payload, player);
+				server.execute(() -> handleUpdatePlexConfig(payload, player));
 			}
 		);
 		ServerPlayNetworking.registerGlobalReceiver(
-			ModNetworkPayloads.RefreshJellyfinLibrary.ID, (server, player, handler, buf, sender) -> handleRefreshLibrary(player)
+			ModNetworkPayloads.RefreshJellyfinLibrary.ID, (server, player, handler, buf, sender) ->
+				server.execute(() -> handleRefreshLibrary(player))
 		);
 		ServerPlayNetworking.registerGlobalReceiver(
-			ModNetworkPayloads.RequestTunarrConfig.ID, (server, player, handler, buf, sender) -> handleRequestTunarrConfig(player)
+			ModNetworkPayloads.RequestTunarrConfig.ID, (server, player, handler, buf, sender) ->
+				server.execute(() -> handleRequestTunarrConfig(player))
 		);
 		ServerPlayNetworking.registerGlobalReceiver(
 			ModNetworkPayloads.UpdateTunarrConfig.ID, (server, player, handler, buf, sender) -> {
 				ModNetworkPayloads.UpdateTunarrConfig payload = ModNetworkPayloads.UpdateTunarrConfig.readFromBuf(buf);
-				handleUpdateTunarrConfig(payload, player);
+				server.execute(() -> handleUpdateTunarrConfig(payload, player));
 			}
 		);
 		ServerPlayNetworking.registerGlobalReceiver(

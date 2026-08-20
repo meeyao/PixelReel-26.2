@@ -17,7 +17,20 @@ public final class ScreenShapes {
 	private ScreenShapes() {
 	}
 
-	public record Cell(int column, int row, int depthCell) {
+	public static final class Cell {
+		private final int column;
+		private final int row;
+		private final int depthCell;
+
+		public Cell(int column, int row, int depthCell) {
+			this.column = column;
+			this.row = row;
+			this.depthCell = depthCell;
+		}
+
+		public int column() { return column; }
+		public int row() { return row; }
+		public int depthCell() { return depthCell; }
 	}
 
 	public static List<Cell> cells(DisplayType type) {
