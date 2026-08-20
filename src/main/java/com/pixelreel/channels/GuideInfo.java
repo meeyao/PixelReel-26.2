@@ -1,7 +1,6 @@
 package com.pixelreel.channels;
 
-import net.minecraft.network.RegistryFriendlyByteBuf;
-import net.minecraft.network.codec.StreamCodec;
+import net.minecraft.network.FriendlyByteBuf;
 
 /** current and next selection on a channel */
 public record GuideInfo(
@@ -9,18 +8,19 @@ public record GuideInfo(
 ) {
 	public static final GuideInfo EMPTY = new GuideInfo("", "", 0L, 0L, "", "", 0L, 0L);
 
-	public static final StreamCodec<RegistryFriendlyByteBuf, GuideInfo> STREAM_CODEC = StreamCodec.of(
-		(buf, value) -> {
-			buf.writeUtf(value.nowTitle, Channel.MAX_TEXT);
-			buf.writeUtf(value.nowEpisode, Channel.MAX_TEXT);
-			buf.writeLong(value.nowStart);
-			buf.writeLong(value.nowEnd);
-			buf.writeUtf(value.nowIconUrl, Channel.MAX_URL);
-			buf.writeUtf(value.nextTitle, Channel.MAX_TEXT);
-			buf.writeLong(value.nextStart);
-			buf.writeLong(value.nextEnd);
-		},
-		buf -> new GuideInfo(
+	public void writeToBuf(FriendlyByteBuf buf) {
+		buf.writeUtf(this.nowTitle, Channel.MAX_TEXT);
+		buf.writeUtf(this.nowEpisode, Channel.MAX_TEXT);
+		buf.writeLong(this.nowStart);
+		buf.writeLong(this.nowEnd);
+		buf.writeUtf(this.nowIconUrl, Channel.MAX_URL);
+		buf.writeUtf(this.nextTitle, Channel.MAX_TEXT);
+		buf.writeLong(this.nextStart);
+		buf.writeLong(this.nextEnd);
+	}
+
+	public static GuideInfo readFromBuf(FriendlyByteBuf buf) {
+		return new GuideInfo(
 			buf.readUtf(Channel.MAX_TEXT),
 			buf.readUtf(Channel.MAX_TEXT),
 			buf.readLong(),
@@ -29,8 +29,8 @@ public record GuideInfo(
 			buf.readUtf(Channel.MAX_TEXT),
 			buf.readLong(),
 			buf.readLong()
-		)
-	);
+		);
+	}
 
 	public boolean hasNow() {
 		return !this.nowTitle.isEmpty();

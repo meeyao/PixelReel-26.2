@@ -1,8 +1,6 @@
 package com.pixelreel.jellyfin;
 
-import net.minecraft.network.RegistryFriendlyByteBuf;
-import net.minecraft.network.codec.ByteBufCodecs;
-import net.minecraft.network.codec.StreamCodec;
+import net.minecraft.network.FriendlyByteBuf;
 
 /** connection / library status */
 public record JellyfinStatus(
@@ -13,21 +11,25 @@ public record JellyfinStatus(
 	int seriesCount,
 	String detail
 ) {
-	public static final StreamCodec<RegistryFriendlyByteBuf, JellyfinStatus> STREAM_CODEC = StreamCodec.composite(
-		ByteBufCodecs.BOOL,
-		JellyfinStatus::configured,
-		ByteBufCodecs.BOOL,
-		JellyfinStatus::reachable,
-		ByteBufCodecs.BOOL,
-		JellyfinStatus::authenticated,
-		ByteBufCodecs.VAR_INT,
-		JellyfinStatus::movieCount,
-		ByteBufCodecs.VAR_INT,
-		JellyfinStatus::seriesCount,
-		ByteBufCodecs.stringUtf8(256),
-		JellyfinStatus::detail,
-		JellyfinStatus::new
-	);
+	public void writeToBuf(FriendlyByteBuf buf) {
+		buf.writeBoolean(this.configured);
+		buf.writeBoolean(this.reachable);
+		buf.writeBoolean(this.authenticated);
+		buf.writeVarInt(this.movieCount);
+		buf.writeVarInt(this.seriesCount);
+		buf.writeUtf(this.detail, 256);
+	}
+
+	public static JellyfinStatus readFromBuf(FriendlyByteBuf buf) {
+		return new JellyfinStatus(
+			buf.readBoolean(),
+			buf.readBoolean(),
+			buf.readBoolean(),
+			buf.readVarInt(),
+			buf.readVarInt(),
+			buf.readUtf(256)
+		);
+	}
 
 	public static JellyfinStatus notConfigured() {
 		return new JellyfinStatus(false, false, false, 0, 0, "Jellyfin is not configured");

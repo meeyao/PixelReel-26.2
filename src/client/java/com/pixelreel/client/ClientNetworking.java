@@ -19,8 +19,10 @@ import com.pixelreel.networking.ScreenAction;
 import com.pixelreel.ondemand.OnDemandProvider;
 import java.util.List;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
+import net.fabricmc.fabric.api.networking.v1.PacketByteBufs;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
+import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.chat.Component;
 
 public final class ClientNetworking {
@@ -33,103 +35,136 @@ public final class ClientNetworking {
 	}
 
 	public static void register() {
-		ClientPlayNetworking.registerGlobalReceiver(ModNetworkPayloads.ChannelList.TYPE, (payload, context) -> {
-			ClientChannelCache.INSTANCE.accept(payload.entries(), payload.status());
-			if (Minecraft.getInstance().screen instanceof ChannelMenuScreen menu) {
-				menu.onChannelsUpdated();
-			}
+		ClientPlayNetworking.registerGlobalReceiver(ModNetworkPayloads.ChannelList.ID, (client, handler, buf, sender) -> {
+			ModNetworkPayloads.ChannelList payload = ModNetworkPayloads.ChannelList.readFromBuf(buf);
+			client.execute(() -> {
+				ClientChannelCache.INSTANCE.accept(payload.entries(), payload.status());
+				if (Minecraft.getInstance().screen instanceof ChannelMenuScreen menu) {
+					menu.onChannelsUpdated();
+				}
+			});
 		});
 
-		ClientPlayNetworking.registerGlobalReceiver(ModNetworkPayloads.OpenMenu.TYPE, (payload, context) ->
-			openMenu(payload.pos())
-		);
-
-		ClientPlayNetworking.registerGlobalReceiver(ModNetworkPayloads.ScreenNotice.TYPE, (payload, context) -> {
-			Minecraft minecraft = Minecraft.getInstance();
-			if (minecraft.player != null) {
-				minecraft.player.displayClientMessage(Component.translatable(payload.translationKey()), true);
-			}
+		ClientPlayNetworking.registerGlobalReceiver(ModNetworkPayloads.OpenMenu.ID, (client, handler, buf, sender) -> {
+			ModNetworkPayloads.OpenMenu payload = ModNetworkPayloads.OpenMenu.readFromBuf(buf);
+			client.execute(() -> openMenu(payload.pos()));
 		});
 
-		ClientPlayNetworking.registerGlobalReceiver(ModNetworkPayloads.RetryDisplay.TYPE, (payload, context) ->
-			PlaybackManager.INSTANCE.retry(payload.pos())
-		);
-
-		ClientPlayNetworking.registerGlobalReceiver(ModNetworkPayloads.ShowClientStatus.TYPE, (payload, context) ->
-			printClientStatus(payload.pos())
-		);
-
-		ClientPlayNetworking.registerGlobalReceiver(ModNetworkPayloads.MediaFeatures.TYPE, (payload, context) -> {
-			ClientMediaCache.INSTANCE.acceptFeatures(payload);
-			if (Minecraft.getInstance().screen instanceof MediaSourceScreen screen) {
-				screen.onFeaturesUpdated();
-			}
+		ClientPlayNetworking.registerGlobalReceiver(ModNetworkPayloads.ScreenNotice.ID, (client, handler, buf, sender) -> {
+			ModNetworkPayloads.ScreenNotice payload = ModNetworkPayloads.ScreenNotice.readFromBuf(buf);
+			client.execute(() -> {
+				Minecraft minecraft = Minecraft.getInstance();
+				if (minecraft.player != null) {
+					minecraft.player.displayClientMessage(Component.translatable(payload.translationKey()), true);
+				}
+			});
 		});
 
-		ClientPlayNetworking.registerGlobalReceiver(ModNetworkPayloads.JellyfinBrowseResult.TYPE, (payload, context) -> {
-			// Drop out-of-order replies so an older page cannot wipe a newer one.
-			if (payload.provider() != pendingBrowseProvider
-				|| payload.kind() != pendingBrowseKind
-				|| payload.page() != pendingBrowsePage
-				|| !payload.search().equals(pendingBrowseSearch)) {
-				return;
-			}
-			ClientMediaCache.INSTANCE.acceptBrowse(payload);
-			if (Minecraft.getInstance().screen instanceof OnDemandBrowseScreen screen) {
-				screen.onBrowseUpdated();
-			}
+		ClientPlayNetworking.registerGlobalReceiver(ModNetworkPayloads.RetryDisplay.ID, (client, handler, buf, sender) -> {
+			ModNetworkPayloads.RetryDisplay payload = ModNetworkPayloads.RetryDisplay.readFromBuf(buf);
+			client.execute(() -> PlaybackManager.INSTANCE.retry(payload.pos()));
 		});
 
-		ClientPlayNetworking.registerGlobalReceiver(ModNetworkPayloads.JellyfinChildrenResult.TYPE, (payload, context) -> {
-			ClientMediaCache.INSTANCE.acceptChildren(payload);
-			var screen = Minecraft.getInstance().screen;
-			if (screen instanceof OnDemandSeriesScreen seriesScreen) {
-				seriesScreen.onChildrenUpdated();
-			} else if (screen instanceof OnDemandEpisodeScreen episodeScreen) {
-				episodeScreen.onChildrenUpdated();
-			} else if (screen instanceof OnDemandDetailScreen detailScreen) {
-				detailScreen.onItemUpdated();
-			}
+		ClientPlayNetworking.registerGlobalReceiver(ModNetworkPayloads.ShowClientStatus.ID, (client, handler, buf, sender) -> {
+			ModNetworkPayloads.ShowClientStatus payload = ModNetworkPayloads.ShowClientStatus.readFromBuf(buf);
+			client.execute(() -> printClientStatus(payload.pos()));
 		});
 
-		ClientPlayNetworking.registerGlobalReceiver(ModNetworkPayloads.JellyfinConfigData.TYPE, (payload, context) -> {
-			ClientMediaCache.INSTANCE.acceptConfig(payload);
-			if (Minecraft.getInstance().screen instanceof JellyfinConfigScreen screen) {
-				screen.onConfigUpdated();
-			}
+		ClientPlayNetworking.registerGlobalReceiver(ModNetworkPayloads.MediaFeatures.ID, (client, handler, buf, sender) -> {
+			ModNetworkPayloads.MediaFeatures payload = ModNetworkPayloads.MediaFeatures.readFromBuf(buf);
+			client.execute(() -> {
+				ClientMediaCache.INSTANCE.acceptFeatures(payload);
+				if (Minecraft.getInstance().screen instanceof MediaSourceScreen screen) {
+					screen.onFeaturesUpdated();
+				}
+			});
 		});
 
-		ClientPlayNetworking.registerGlobalReceiver(ModNetworkPayloads.EmbyConfigData.TYPE, (payload, context) -> {
-			ClientMediaCache.INSTANCE.acceptEmbyConfig(payload);
-			if (Minecraft.getInstance().screen instanceof EmbyConfigScreen screen) {
-				screen.onConfigUpdated();
-			}
+		ClientPlayNetworking.registerGlobalReceiver(ModNetworkPayloads.JellyfinBrowseResult.ID, (client, handler, buf, sender) -> {
+			ModNetworkPayloads.JellyfinBrowseResult payload = ModNetworkPayloads.JellyfinBrowseResult.readFromBuf(buf);
+			client.execute(() -> {
+				if (payload.provider() != pendingBrowseProvider
+					|| payload.kind() != pendingBrowseKind
+					|| payload.page() != pendingBrowsePage
+					|| !payload.search().equals(pendingBrowseSearch)) {
+					return;
+				}
+				ClientMediaCache.INSTANCE.acceptBrowse(payload);
+				if (Minecraft.getInstance().screen instanceof OnDemandBrowseScreen screen) {
+					screen.onBrowseUpdated();
+				}
+			});
 		});
 
-		ClientPlayNetworking.registerGlobalReceiver(ModNetworkPayloads.PlexConfigData.TYPE, (payload, context) -> {
-			ClientMediaCache.INSTANCE.acceptPlexConfig(payload);
-			if (Minecraft.getInstance().screen instanceof PlexConfigScreen screen) {
-				screen.onConfigUpdated();
-			}
+		ClientPlayNetworking.registerGlobalReceiver(ModNetworkPayloads.JellyfinChildrenResult.ID, (client, handler, buf, sender) -> {
+			ModNetworkPayloads.JellyfinChildrenResult payload = ModNetworkPayloads.JellyfinChildrenResult.readFromBuf(buf);
+			client.execute(() -> {
+				ClientMediaCache.INSTANCE.acceptChildren(payload);
+				var screen = Minecraft.getInstance().screen;
+				if (screen instanceof OnDemandSeriesScreen seriesScreen) {
+					seriesScreen.onChildrenUpdated();
+				} else if (screen instanceof OnDemandEpisodeScreen episodeScreen) {
+					episodeScreen.onChildrenUpdated();
+				} else if (screen instanceof OnDemandDetailScreen detailScreen) {
+					detailScreen.onItemUpdated();
+				}
+			});
 		});
 
-		ClientPlayNetworking.registerGlobalReceiver(ModNetworkPayloads.TunarrConfigData.TYPE, (payload, context) -> {
-			ClientMediaCache.INSTANCE.acceptTunarrConfig(payload);
-			if (Minecraft.getInstance().screen instanceof TunarrConfigScreen screen) {
-				screen.onConfigUpdated();
-			}
+		ClientPlayNetworking.registerGlobalReceiver(ModNetworkPayloads.JellyfinConfigData.ID, (client, handler, buf, sender) -> {
+			ModNetworkPayloads.JellyfinConfigData payload = ModNetworkPayloads.JellyfinConfigData.readFromBuf(buf);
+			client.execute(() -> {
+				ClientMediaCache.INSTANCE.acceptConfig(payload);
+				if (Minecraft.getInstance().screen instanceof JellyfinConfigScreen screen) {
+					screen.onConfigUpdated();
+				}
+			});
+		});
+
+		ClientPlayNetworking.registerGlobalReceiver(ModNetworkPayloads.EmbyConfigData.ID, (client, handler, buf, sender) -> {
+			ModNetworkPayloads.EmbyConfigData payload = ModNetworkPayloads.EmbyConfigData.readFromBuf(buf);
+			client.execute(() -> {
+				ClientMediaCache.INSTANCE.acceptEmbyConfig(payload);
+				if (Minecraft.getInstance().screen instanceof EmbyConfigScreen screen) {
+					screen.onConfigUpdated();
+				}
+			});
+		});
+
+		ClientPlayNetworking.registerGlobalReceiver(ModNetworkPayloads.PlexConfigData.ID, (client, handler, buf, sender) -> {
+			ModNetworkPayloads.PlexConfigData payload = ModNetworkPayloads.PlexConfigData.readFromBuf(buf);
+			client.execute(() -> {
+				ClientMediaCache.INSTANCE.acceptPlexConfig(payload);
+				if (Minecraft.getInstance().screen instanceof PlexConfigScreen screen) {
+					screen.onConfigUpdated();
+				}
+			});
+		});
+
+		ClientPlayNetworking.registerGlobalReceiver(ModNetworkPayloads.TunarrConfigData.ID, (client, handler, buf, sender) -> {
+			ModNetworkPayloads.TunarrConfigData payload = ModNetworkPayloads.TunarrConfigData.readFromBuf(buf);
+			client.execute(() -> {
+				ClientMediaCache.INSTANCE.acceptTunarrConfig(payload);
+				if (Minecraft.getInstance().screen instanceof TunarrConfigScreen screen) {
+					screen.onConfigUpdated();
+				}
+			});
 		});
 	}
 
 	public static void requestChannels(boolean forceRefresh) {
-		if (ClientPlayNetworking.canSend(ModNetworkPayloads.RequestChannels.TYPE)) {
-			ClientPlayNetworking.send(new ModNetworkPayloads.RequestChannels(forceRefresh));
+		if (ClientPlayNetworking.canSend(ModNetworkPayloads.RequestChannels.ID)) {
+			FriendlyByteBuf buf = PacketByteBufs.create();
+			new ModNetworkPayloads.RequestChannels(forceRefresh).writeToBuf(buf);
+			ClientPlayNetworking.send(ModNetworkPayloads.RequestChannels.ID, buf);
 		}
 	}
 
 	public static void requestMediaFeatures() {
-		if (ClientPlayNetworking.canSend(ModNetworkPayloads.RequestMediaFeatures.TYPE)) {
-			ClientPlayNetworking.send(new ModNetworkPayloads.RequestMediaFeatures());
+		if (ClientPlayNetworking.canSend(ModNetworkPayloads.RequestMediaFeatures.ID)) {
+			FriendlyByteBuf buf = PacketByteBufs.create();
+			new ModNetworkPayloads.RequestMediaFeatures().writeToBuf(buf);
+			ClientPlayNetworking.send(ModNetworkPayloads.RequestMediaFeatures.ID, buf);
 		}
 	}
 
@@ -145,10 +180,10 @@ public final class ClientNetworking {
 		pendingBrowseKind = kind;
 		pendingBrowseSearch = normalized;
 		pendingBrowsePage = page;
-		if (ClientPlayNetworking.canSend(ModNetworkPayloads.RequestJellyfinBrowse.TYPE)) {
-			ClientPlayNetworking.send(
-				new ModNetworkPayloads.RequestJellyfinBrowse(provider, kind, normalized, page, force)
-			);
+		if (ClientPlayNetworking.canSend(ModNetworkPayloads.RequestJellyfinBrowse.ID)) {
+			FriendlyByteBuf buf = PacketByteBufs.create();
+			new ModNetworkPayloads.RequestJellyfinBrowse(provider, kind, normalized, page, force).writeToBuf(buf);
+			ClientPlayNetworking.send(ModNetworkPayloads.RequestJellyfinBrowse.ID, buf);
 		}
 	}
 
@@ -158,50 +193,66 @@ public final class ClientNetworking {
 		String parentId,
 		boolean force
 	) {
-		if (ClientPlayNetworking.canSend(ModNetworkPayloads.RequestJellyfinChildren.TYPE)) {
-			ClientPlayNetworking.send(new ModNetworkPayloads.RequestJellyfinChildren(provider, kind, parentId, force));
+		if (ClientPlayNetworking.canSend(ModNetworkPayloads.RequestJellyfinChildren.ID)) {
+			FriendlyByteBuf buf = PacketByteBufs.create();
+			new ModNetworkPayloads.RequestJellyfinChildren(provider, kind, parentId, force).writeToBuf(buf);
+			ClientPlayNetworking.send(ModNetworkPayloads.RequestJellyfinChildren.ID, buf);
 		}
 	}
 
 	public static void playJellyfin(OnDemandProvider provider, BlockPos pos, String itemId, long startPositionMs) {
-		if (ClientPlayNetworking.canSend(ModNetworkPayloads.ScreenPlayJellyfin.TYPE)) {
-			ClientPlayNetworking.send(new ModNetworkPayloads.ScreenPlayJellyfin(provider, pos, itemId, startPositionMs));
+		if (ClientPlayNetworking.canSend(ModNetworkPayloads.ScreenPlayJellyfin.ID)) {
+			FriendlyByteBuf buf = PacketByteBufs.create();
+			new ModNetworkPayloads.ScreenPlayJellyfin(provider, pos, itemId, startPositionMs).writeToBuf(buf);
+			ClientPlayNetworking.send(ModNetworkPayloads.ScreenPlayJellyfin.ID, buf);
 		}
 	}
 
 	public static void reportMediaEnded(BlockPos pos, int channelEpoch) {
-		if (ClientPlayNetworking.canSend(ModNetworkPayloads.ReportMediaEnded.TYPE)) {
-			ClientPlayNetworking.send(new ModNetworkPayloads.ReportMediaEnded(pos, channelEpoch));
+		if (ClientPlayNetworking.canSend(ModNetworkPayloads.ReportMediaEnded.ID)) {
+			FriendlyByteBuf buf = PacketByteBufs.create();
+			new ModNetworkPayloads.ReportMediaEnded(pos, channelEpoch).writeToBuf(buf);
+			ClientPlayNetworking.send(ModNetworkPayloads.ReportMediaEnded.ID, buf);
 		}
 	}
 
 	public static void requestJellyfinConfig() {
-		if (ClientPlayNetworking.canSend(ModNetworkPayloads.RequestJellyfinConfig.TYPE)) {
-			ClientPlayNetworking.send(new ModNetworkPayloads.RequestJellyfinConfig());
+		if (ClientPlayNetworking.canSend(ModNetworkPayloads.RequestJellyfinConfig.ID)) {
+			FriendlyByteBuf buf = PacketByteBufs.create();
+			new ModNetworkPayloads.RequestJellyfinConfig().writeToBuf(buf);
+			ClientPlayNetworking.send(ModNetworkPayloads.RequestJellyfinConfig.ID, buf);
 		}
 	}
 
 	public static void requestEmbyConfig() {
-		if (ClientPlayNetworking.canSend(ModNetworkPayloads.RequestEmbyConfig.TYPE)) {
-			ClientPlayNetworking.send(new ModNetworkPayloads.RequestEmbyConfig());
+		if (ClientPlayNetworking.canSend(ModNetworkPayloads.RequestEmbyConfig.ID)) {
+			FriendlyByteBuf buf = PacketByteBufs.create();
+			new ModNetworkPayloads.RequestEmbyConfig().writeToBuf(buf);
+			ClientPlayNetworking.send(ModNetworkPayloads.RequestEmbyConfig.ID, buf);
 		}
 	}
 
 	public static void requestPlexConfig() {
-		if (ClientPlayNetworking.canSend(ModNetworkPayloads.RequestPlexConfig.TYPE)) {
-			ClientPlayNetworking.send(new ModNetworkPayloads.RequestPlexConfig());
+		if (ClientPlayNetworking.canSend(ModNetworkPayloads.RequestPlexConfig.ID)) {
+			FriendlyByteBuf buf = PacketByteBufs.create();
+			new ModNetworkPayloads.RequestPlexConfig().writeToBuf(buf);
+			ClientPlayNetworking.send(ModNetworkPayloads.RequestPlexConfig.ID, buf);
 		}
 	}
 
 	public static void requestTunarrConfig() {
-		if (ClientPlayNetworking.canSend(ModNetworkPayloads.RequestTunarrConfig.TYPE)) {
-			ClientPlayNetworking.send(new ModNetworkPayloads.RequestTunarrConfig());
+		if (ClientPlayNetworking.canSend(ModNetworkPayloads.RequestTunarrConfig.ID)) {
+			FriendlyByteBuf buf = PacketByteBufs.create();
+			new ModNetworkPayloads.RequestTunarrConfig().writeToBuf(buf);
+			ClientPlayNetworking.send(ModNetworkPayloads.RequestTunarrConfig.ID, buf);
 		}
 	}
 
 	public static void updateTunarrConfig(String m3uUrl, String xmltvUrl) {
-		if (ClientPlayNetworking.canSend(ModNetworkPayloads.UpdateTunarrConfig.TYPE)) {
-			ClientPlayNetworking.send(new ModNetworkPayloads.UpdateTunarrConfig(m3uUrl, xmltvUrl));
+		if (ClientPlayNetworking.canSend(ModNetworkPayloads.UpdateTunarrConfig.ID)) {
+			FriendlyByteBuf buf = PacketByteBufs.create();
+			new ModNetworkPayloads.UpdateTunarrConfig(m3uUrl, xmltvUrl).writeToBuf(buf);
+			ClientPlayNetworking.send(ModNetworkPayloads.UpdateTunarrConfig.ID, buf);
 		}
 	}
 
@@ -214,8 +265,10 @@ public final class ClientNetworking {
 		boolean autoplay,
 		List<String> libraryIds
 	) {
-		if (ClientPlayNetworking.canSend(ModNetworkPayloads.UpdateJellyfinConfig.TYPE)) {
-			ClientPlayNetworking.send(new ModNetworkPayloads.UpdateJellyfinConfig(url, apiKey, userId, movies, shows, autoplay, libraryIds));
+		if (ClientPlayNetworking.canSend(ModNetworkPayloads.UpdateJellyfinConfig.ID)) {
+			FriendlyByteBuf buf = PacketByteBufs.create();
+			new ModNetworkPayloads.UpdateJellyfinConfig(url, apiKey, userId, movies, shows, autoplay, libraryIds).writeToBuf(buf);
+			ClientPlayNetworking.send(ModNetworkPayloads.UpdateJellyfinConfig.ID, buf);
 		}
 	}
 
@@ -227,8 +280,10 @@ public final class ClientNetworking {
 		boolean shows,
 		List<String> libraryIds
 	) {
-		if (ClientPlayNetworking.canSend(ModNetworkPayloads.UpdateEmbyConfig.TYPE)) {
-			ClientPlayNetworking.send(new ModNetworkPayloads.UpdateEmbyConfig(url, apiKey, userId, movies, shows, libraryIds));
+		if (ClientPlayNetworking.canSend(ModNetworkPayloads.UpdateEmbyConfig.ID)) {
+			FriendlyByteBuf buf = PacketByteBufs.create();
+			new ModNetworkPayloads.UpdateEmbyConfig(url, apiKey, userId, movies, shows, libraryIds).writeToBuf(buf);
+			ClientPlayNetworking.send(ModNetworkPayloads.UpdateEmbyConfig.ID, buf);
 		}
 	}
 
@@ -239,37 +294,47 @@ public final class ClientNetworking {
 		boolean shows,
 		List<String> libraryKeys
 	) {
-		if (ClientPlayNetworking.canSend(ModNetworkPayloads.UpdatePlexConfig.TYPE)) {
-			ClientPlayNetworking.send(new ModNetworkPayloads.UpdatePlexConfig(url, token, movies, shows, libraryKeys));
+		if (ClientPlayNetworking.canSend(ModNetworkPayloads.UpdatePlexConfig.ID)) {
+			FriendlyByteBuf buf = PacketByteBufs.create();
+			new ModNetworkPayloads.UpdatePlexConfig(url, token, movies, shows, libraryKeys).writeToBuf(buf);
+			ClientPlayNetworking.send(ModNetworkPayloads.UpdatePlexConfig.ID, buf);
 		}
 	}
 
 	public static void refreshJellyfinLibrary() {
-		if (ClientPlayNetworking.canSend(ModNetworkPayloads.RefreshJellyfinLibrary.TYPE)) {
-			ClientPlayNetworking.send(new ModNetworkPayloads.RefreshJellyfinLibrary());
+		if (ClientPlayNetworking.canSend(ModNetworkPayloads.RefreshJellyfinLibrary.ID)) {
+			FriendlyByteBuf buf = PacketByteBufs.create();
+			new ModNetworkPayloads.RefreshJellyfinLibrary().writeToBuf(buf);
+			ClientPlayNetworking.send(ModNetworkPayloads.RefreshJellyfinLibrary.ID, buf);
 		}
 	}
 
 	public static void unequipPixelGlasses() {
 		try {
-			ClientPlayNetworking.send(new ModNetworkPayloads.UnequipPixelGlasses());
+			FriendlyByteBuf buf = PacketByteBufs.create();
+			new ModNetworkPayloads.UnequipPixelGlasses().writeToBuf(buf);
+			ClientPlayNetworking.send(ModNetworkPayloads.UnequipPixelGlasses.ID, buf);
 		} catch (RuntimeException ignored) {
 			// Not connected yet / channel not ready — local head-slot clear still dismisses the overlay.
 		}
 	}
 
 	public static void sendControl(BlockPos pos, ScreenAction action, float value) {
-		if (ClientPlayNetworking.canSend(ModNetworkPayloads.ScreenControl.TYPE)) {
-			ClientPlayNetworking.send(new ModNetworkPayloads.ScreenControl(pos, action, value));
+		if (ClientPlayNetworking.canSend(ModNetworkPayloads.ScreenControl.ID)) {
+			FriendlyByteBuf buf = PacketByteBufs.create();
+			new ModNetworkPayloads.ScreenControl(pos, action, value).writeToBuf(buf);
+			ClientPlayNetworking.send(ModNetworkPayloads.ScreenControl.ID, buf);
 		}
 	}
 
 	public static void sendTune(BlockPos pos, String channelId) {
-		if (!ClientPlayNetworking.canSend(ModNetworkPayloads.ScreenTune.TYPE)) {
+		if (!ClientPlayNetworking.canSend(ModNetworkPayloads.ScreenTune.ID)) {
 			com.pixelreel.PixelReel.LOGGER.warn("Cannot send channel tune for {} - play channel not ready", channelId);
 			return;
 		}
-		ClientPlayNetworking.send(new ModNetworkPayloads.ScreenTune(pos, channelId));
+		FriendlyByteBuf buf = PacketByteBufs.create();
+		new ModNetworkPayloads.ScreenTune(pos, channelId).writeToBuf(buf);
+		ClientPlayNetworking.send(ModNetworkPayloads.ScreenTune.ID, buf);
 	}
 
 	public static void openMenu(BlockPos pos) {

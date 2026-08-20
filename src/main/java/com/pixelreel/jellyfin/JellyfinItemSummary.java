@@ -3,8 +3,7 @@ package com.pixelreel.jellyfin;
 import java.util.Locale;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import net.minecraft.network.RegistryFriendlyByteBuf;
-import net.minecraft.network.codec.StreamCodec;
+import net.minecraft.network.FriendlyByteBuf;
 
 /** jellyfin content summary */
 public record JellyfinItemSummary(
@@ -30,26 +29,27 @@ public record JellyfinItemSummary(
 	public static final int MAX_URL = 2048;
 	public static final int MAX_ID = 128;
 
-	public static final StreamCodec<RegistryFriendlyByteBuf, JellyfinItemSummary> STREAM_CODEC = StreamCodec.of(
-		(buf, value) -> {
-			buf.writeUtf(value.id, MAX_ID);
-			buf.writeVarInt(value.kind.ordinal());
-			buf.writeUtf(value.title, MAX_TITLE);
-			buf.writeUtf(value.overview, MAX_OVERVIEW);
-			buf.writeVarInt(value.productionYear);
-			buf.writeLong(value.runtimeTicks);
-			buf.writeUtf(value.imageUrl, MAX_URL);
-			buf.writeLong(value.playbackPositionTicks);
-			buf.writeLong(value.runTimeTicks);
-			buf.writeBoolean(value.played);
-			buf.writeVarInt(value.childCount);
-			buf.writeVarInt(value.indexNumber);
-			buf.writeVarInt(value.parentIndexNumber);
-			buf.writeUtf(value.seriesName, MAX_TITLE);
-			buf.writeUtf(value.seriesId, MAX_ID);
-			buf.writeUtf(value.seasonId, MAX_ID);
-		},
-		buf -> new JellyfinItemSummary(
+	public void writeToBuf(FriendlyByteBuf buf) {
+		buf.writeUtf(this.id, MAX_ID);
+		buf.writeVarInt(this.kind.ordinal());
+		buf.writeUtf(this.title, MAX_TITLE);
+		buf.writeUtf(this.overview, MAX_OVERVIEW);
+		buf.writeVarInt(this.productionYear);
+		buf.writeLong(this.runtimeTicks);
+		buf.writeUtf(this.imageUrl, MAX_URL);
+		buf.writeLong(this.playbackPositionTicks);
+		buf.writeLong(this.runTimeTicks);
+		buf.writeBoolean(this.played);
+		buf.writeVarInt(this.childCount);
+		buf.writeVarInt(this.indexNumber);
+		buf.writeVarInt(this.parentIndexNumber);
+		buf.writeUtf(this.seriesName, MAX_TITLE);
+		buf.writeUtf(this.seriesId, MAX_ID);
+		buf.writeUtf(this.seasonId, MAX_ID);
+	}
+
+	public static JellyfinItemSummary readFromBuf(FriendlyByteBuf buf) {
+		return new JellyfinItemSummary(
 			buf.readUtf(MAX_ID),
 			kindByOrdinal(buf.readVarInt()),
 			buf.readUtf(MAX_TITLE),
@@ -66,8 +66,8 @@ public record JellyfinItemSummary(
 			buf.readUtf(MAX_TITLE),
 			buf.readUtf(MAX_ID),
 			buf.readUtf(MAX_ID)
-		)
-	);
+		);
+	}
 
 	public JellyfinItemSummary forBrowsePacket() {
 		if (this.overview == null || this.overview.isEmpty()) {

@@ -21,8 +21,10 @@ import com.pixelreel.server.ScreenControllerLogic;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import net.fabricmc.fabric.api.networking.v1.PacketByteBufs;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.minecraft.core.BlockPos;
+import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
 
@@ -32,60 +34,93 @@ public final class ServerNetworking {
 
 	public static void register() {
 		ServerPlayNetworking.registerGlobalReceiver(
-			ModNetworkPayloads.ScreenControl.TYPE, (payload, context) -> handleControl(payload, context.player())
+			ModNetworkPayloads.ScreenControl.ID, (server, player, handler, buf, sender) -> {
+				ModNetworkPayloads.ScreenControl payload = ModNetworkPayloads.ScreenControl.readFromBuf(buf);
+				handleControl(payload, player);
+			}
 		);
 		ServerPlayNetworking.registerGlobalReceiver(
-			ModNetworkPayloads.ScreenTune.TYPE, (payload, context) -> handleTune(payload, context.player())
+			ModNetworkPayloads.ScreenTune.ID, (server, player, handler, buf, sender) -> {
+				ModNetworkPayloads.ScreenTune payload = ModNetworkPayloads.ScreenTune.readFromBuf(buf);
+				handleTune(payload, player);
+			}
 		);
 		ServerPlayNetworking.registerGlobalReceiver(
-			ModNetworkPayloads.RequestChannels.TYPE, (payload, context) -> sendChannelList(context.player(), payload.forceRefresh())
+			ModNetworkPayloads.RequestChannels.ID, (server, player, handler, buf, sender) -> {
+				ModNetworkPayloads.RequestChannels payload = ModNetworkPayloads.RequestChannels.readFromBuf(buf);
+				sendChannelList(player, payload.forceRefresh());
+			}
 		);
 		ServerPlayNetworking.registerGlobalReceiver(
-			ModNetworkPayloads.RequestMediaFeatures.TYPE, (payload, context) -> sendMediaFeatures(context.player())
+			ModNetworkPayloads.RequestMediaFeatures.ID, (server, player, handler, buf, sender) -> sendMediaFeatures(player)
 		);
 		ServerPlayNetworking.registerGlobalReceiver(
-			ModNetworkPayloads.RequestJellyfinBrowse.TYPE, (payload, context) -> handleBrowse(payload, context.player())
+			ModNetworkPayloads.RequestJellyfinBrowse.ID, (server, player, handler, buf, sender) -> {
+				ModNetworkPayloads.RequestJellyfinBrowse payload = ModNetworkPayloads.RequestJellyfinBrowse.readFromBuf(buf);
+				handleBrowse(payload, player);
+			}
 		);
 		ServerPlayNetworking.registerGlobalReceiver(
-			ModNetworkPayloads.RequestJellyfinChildren.TYPE, (payload, context) -> handleChildren(payload, context.player())
+			ModNetworkPayloads.RequestJellyfinChildren.ID, (server, player, handler, buf, sender) -> {
+				ModNetworkPayloads.RequestJellyfinChildren payload = ModNetworkPayloads.RequestJellyfinChildren.readFromBuf(buf);
+				handleChildren(payload, player);
+			}
 		);
 		ServerPlayNetworking.registerGlobalReceiver(
-			ModNetworkPayloads.ScreenPlayJellyfin.TYPE, (payload, context) -> handlePlayJellyfin(payload, context.player())
+			ModNetworkPayloads.ScreenPlayJellyfin.ID, (server, player, handler, buf, sender) -> {
+				ModNetworkPayloads.ScreenPlayJellyfin payload = ModNetworkPayloads.ScreenPlayJellyfin.readFromBuf(buf);
+				handlePlayJellyfin(payload, player);
+			}
 		);
 		ServerPlayNetworking.registerGlobalReceiver(
-			ModNetworkPayloads.ReportMediaEnded.TYPE, (payload, context) -> handleMediaEnded(payload, context.player())
+			ModNetworkPayloads.ReportMediaEnded.ID, (server, player, handler, buf, sender) -> {
+				ModNetworkPayloads.ReportMediaEnded payload = ModNetworkPayloads.ReportMediaEnded.readFromBuf(buf);
+				handleMediaEnded(payload, player);
+			}
 		);
 		ServerPlayNetworking.registerGlobalReceiver(
-			ModNetworkPayloads.RequestJellyfinConfig.TYPE, (payload, context) -> handleRequestJellyfinConfig(context.player())
+			ModNetworkPayloads.RequestJellyfinConfig.ID, (server, player, handler, buf, sender) -> handleRequestJellyfinConfig(player)
 		);
 		ServerPlayNetworking.registerGlobalReceiver(
-			ModNetworkPayloads.UpdateJellyfinConfig.TYPE, (payload, context) -> handleUpdateJellyfinConfig(payload, context.player())
+			ModNetworkPayloads.UpdateJellyfinConfig.ID, (server, player, handler, buf, sender) -> {
+				ModNetworkPayloads.UpdateJellyfinConfig payload = ModNetworkPayloads.UpdateJellyfinConfig.readFromBuf(buf);
+				handleUpdateJellyfinConfig(payload, player);
+			}
 		);
 		ServerPlayNetworking.registerGlobalReceiver(
-			ModNetworkPayloads.RequestEmbyConfig.TYPE, (payload, context) -> handleRequestEmbyConfig(context.player())
+			ModNetworkPayloads.RequestEmbyConfig.ID, (server, player, handler, buf, sender) -> handleRequestEmbyConfig(player)
 		);
 		ServerPlayNetworking.registerGlobalReceiver(
-			ModNetworkPayloads.UpdateEmbyConfig.TYPE, (payload, context) -> handleUpdateEmbyConfig(payload, context.player())
+			ModNetworkPayloads.UpdateEmbyConfig.ID, (server, player, handler, buf, sender) -> {
+				ModNetworkPayloads.UpdateEmbyConfig payload = ModNetworkPayloads.UpdateEmbyConfig.readFromBuf(buf);
+				handleUpdateEmbyConfig(payload, player);
+			}
 		);
 		ServerPlayNetworking.registerGlobalReceiver(
-			ModNetworkPayloads.RequestPlexConfig.TYPE, (payload, context) -> handleRequestPlexConfig(context.player())
+			ModNetworkPayloads.RequestPlexConfig.ID, (server, player, handler, buf, sender) -> handleRequestPlexConfig(player)
 		);
 		ServerPlayNetworking.registerGlobalReceiver(
-			ModNetworkPayloads.UpdatePlexConfig.TYPE, (payload, context) -> handleUpdatePlexConfig(payload, context.player())
+			ModNetworkPayloads.UpdatePlexConfig.ID, (server, player, handler, buf, sender) -> {
+				ModNetworkPayloads.UpdatePlexConfig payload = ModNetworkPayloads.UpdatePlexConfig.readFromBuf(buf);
+				handleUpdatePlexConfig(payload, player);
+			}
 		);
 		ServerPlayNetworking.registerGlobalReceiver(
-			ModNetworkPayloads.RefreshJellyfinLibrary.TYPE, (payload, context) -> handleRefreshLibrary(context.player())
+			ModNetworkPayloads.RefreshJellyfinLibrary.ID, (server, player, handler, buf, sender) -> handleRefreshLibrary(player)
 		);
 		ServerPlayNetworking.registerGlobalReceiver(
-			ModNetworkPayloads.RequestTunarrConfig.TYPE, (payload, context) -> handleRequestTunarrConfig(context.player())
+			ModNetworkPayloads.RequestTunarrConfig.ID, (server, player, handler, buf, sender) -> handleRequestTunarrConfig(player)
 		);
 		ServerPlayNetworking.registerGlobalReceiver(
-			ModNetworkPayloads.UpdateTunarrConfig.TYPE, (payload, context) -> handleUpdateTunarrConfig(payload, context.player())
+			ModNetworkPayloads.UpdateTunarrConfig.ID, (server, player, handler, buf, sender) -> {
+				ModNetworkPayloads.UpdateTunarrConfig payload = ModNetworkPayloads.UpdateTunarrConfig.readFromBuf(buf);
+				handleUpdateTunarrConfig(payload, player);
+			}
 		);
 		ServerPlayNetworking.registerGlobalReceiver(
-			ModNetworkPayloads.UnequipPixelGlasses.TYPE,
-			(payload, context) -> context.server().execute(() ->
-				com.pixelreel.items.PixelGlassesItem.tryUnequip(context.player())
+			ModNetworkPayloads.UnequipPixelGlasses.ID,
+			(server, player, handler, buf, sender) -> server.execute(() ->
+				com.pixelreel.items.PixelGlassesItem.tryUnequip(player)
 			)
 		);
 	}
@@ -156,35 +191,33 @@ public final class ServerNetworking {
 			return;
 		}
 		if (!OnDemandCatalog.isConfigured(provider)) {
-			ServerPlayNetworking.send(
-				player,
-				new ModNetworkPayloads.JellyfinBrowseResult(
-					provider,
-					payload.kind(),
-					payload.search(),
-					payload.page(),
-					0,
-					OnDemandCatalog.lastStatus(provider),
-					List.of()
-				)
-			);
+			FriendlyByteBuf buf = PacketByteBufs.create();
+			new ModNetworkPayloads.JellyfinBrowseResult(
+				provider,
+				payload.kind(),
+				payload.search(),
+				payload.page(),
+				0,
+				OnDemandCatalog.lastStatus(provider),
+				List.of()
+			).writeToBuf(buf);
+			ServerPlayNetworking.send(player, ModNetworkPayloads.JellyfinBrowseResult.ID, buf);
 			return;
 		}
 		OnDemandCatalog.refresh(provider, payload.forceRefresh()).whenComplete((status, error) -> runOnServer(player, () -> {
 			OnDemandCatalog.Page page = OnDemandCatalog.page(provider, payload.kind(), payload.search(), payload.page());
 			List<JellyfinItemSummary> slim = page.items().stream().map(JellyfinItemSummary::forBrowsePacket).toList();
-			ServerPlayNetworking.send(
-				player,
-				new ModNetworkPayloads.JellyfinBrowseResult(
-					provider,
-					payload.kind(),
-					payload.search(),
-					page.page(),
-					page.totalCount(),
-					OnDemandCatalog.lastStatus(provider),
-					slim
-				)
-			);
+			FriendlyByteBuf buf = PacketByteBufs.create();
+			new ModNetworkPayloads.JellyfinBrowseResult(
+				provider,
+				payload.kind(),
+				payload.search(),
+				page.page(),
+				page.totalCount(),
+				OnDemandCatalog.lastStatus(provider),
+				slim
+			).writeToBuf(buf);
+			ServerPlayNetworking.send(player, ModNetworkPayloads.JellyfinBrowseResult.ID, buf);
 		}));
 	}
 
@@ -231,16 +264,15 @@ public final class ServerNetworking {
 		if (player.hasDisconnected()) {
 			return;
 		}
-		ServerPlayNetworking.send(
-			player,
-			new ModNetworkPayloads.JellyfinChildrenResult(
-				payload.provider(),
-				payload.kind(),
-				payload.parentId(),
-				OnDemandCatalog.lastStatus(payload.provider()),
-				items == null ? List.of() : items
-			)
-		);
+		FriendlyByteBuf buf = PacketByteBufs.create();
+		new ModNetworkPayloads.JellyfinChildrenResult(
+			payload.provider(),
+			payload.kind(),
+			payload.parentId(),
+			OnDemandCatalog.lastStatus(payload.provider()),
+			items == null ? List.of() : items
+		).writeToBuf(buf);
+		ServerPlayNetworking.send(player, ModNetworkPayloads.JellyfinChildrenResult.ID, buf);
 	}
 
 	private static void handlePlayJellyfin(ModNetworkPayloads.ScreenPlayJellyfin payload, ServerPlayer player) {
@@ -326,7 +358,9 @@ public final class ServerNetworking {
 			String key = status != null && status.authenticated()
 				? "message.pixelreel.jellyfin.config_saved"
 				: "message.pixelreel.jellyfin.config_failed";
-			ServerPlayNetworking.send(player, new ModNetworkPayloads.ScreenNotice(BlockPos.ZERO, key));
+			FriendlyByteBuf buf = PacketByteBufs.create();
+			new ModNetworkPayloads.ScreenNotice(BlockPos.ZERO, key).writeToBuf(buf);
+			ServerPlayNetworking.send(player, ModNetworkPayloads.ScreenNotice.ID, buf);
 		}));
 	}
 
@@ -363,7 +397,9 @@ public final class ServerNetworking {
 			String key = status != null && status.authenticated()
 				? "message.pixelreel.emby.config_saved"
 				: "message.pixelreel.emby.config_failed";
-			ServerPlayNetworking.send(player, new ModNetworkPayloads.ScreenNotice(BlockPos.ZERO, key));
+			FriendlyByteBuf buf = PacketByteBufs.create();
+			new ModNetworkPayloads.ScreenNotice(BlockPos.ZERO, key).writeToBuf(buf);
+			ServerPlayNetworking.send(player, ModNetworkPayloads.ScreenNotice.ID, buf);
 		}));
 	}
 
@@ -399,7 +435,9 @@ public final class ServerNetworking {
 			String key = status != null && status.authenticated()
 				? "message.pixelreel.plex.config_saved"
 				: "message.pixelreel.plex.config_failed";
-			ServerPlayNetworking.send(player, new ModNetworkPayloads.ScreenNotice(BlockPos.ZERO, key));
+			FriendlyByteBuf buf = PacketByteBufs.create();
+			new ModNetworkPayloads.ScreenNotice(BlockPos.ZERO, key).writeToBuf(buf);
+			ServerPlayNetworking.send(player, ModNetworkPayloads.ScreenNotice.ID, buf);
 		}));
 	}
 
@@ -421,7 +459,9 @@ public final class ServerNetworking {
 		}
 		if (futures.isEmpty()) {
 			sendMediaFeatures(player);
-			ServerPlayNetworking.send(player, new ModNetworkPayloads.ScreenNotice(BlockPos.ZERO, "message.pixelreel.ondemand.refresh_failed"));
+			FriendlyByteBuf buf = PacketByteBufs.create();
+			new ModNetworkPayloads.ScreenNotice(BlockPos.ZERO, "message.pixelreel.ondemand.refresh_failed").writeToBuf(buf);
+			ServerPlayNetworking.send(player, ModNetworkPayloads.ScreenNotice.ID, buf);
 			return;
 		}
 		CompletableFuture.allOf(futures.toArray(CompletableFuture[]::new))
@@ -437,7 +477,9 @@ public final class ServerNetworking {
 				String key = ok
 					? "message.pixelreel.ondemand.refresh_done"
 					: "message.pixelreel.ondemand.refresh_failed";
-				ServerPlayNetworking.send(player, new ModNetworkPayloads.ScreenNotice(BlockPos.ZERO, key));
+				FriendlyByteBuf buf = PacketByteBufs.create();
+				new ModNetworkPayloads.ScreenNotice(BlockPos.ZERO, key).writeToBuf(buf);
+				ServerPlayNetworking.send(player, ModNetworkPayloads.ScreenNotice.ID, buf);
 			}));
 	}
 
@@ -446,20 +488,19 @@ public final class ServerNetworking {
 			return;
 		}
 		PixelReelConfig.JellyfinPublicConfig pub = ConfigManager.get().jellyfinPublicConfig();
-		ServerPlayNetworking.send(
-			player,
-			new ModNetworkPayloads.JellyfinConfigData(
-				pub.url(),
-				pub.userId(),
-				pub.moviesEnabled(),
-				pub.tvShowsEnabled(),
-				pub.autoplayNextEpisode(),
-				pub.hasApiKey(),
-				pub.libraryIds(),
-				libraries == null ? List.of() : libraries,
-				JellyfinService.INSTANCE.lastStatus()
-			)
-		);
+		FriendlyByteBuf buf = PacketByteBufs.create();
+		new ModNetworkPayloads.JellyfinConfigData(
+			pub.url(),
+			pub.userId(),
+			pub.moviesEnabled(),
+			pub.tvShowsEnabled(),
+			pub.autoplayNextEpisode(),
+			pub.hasApiKey(),
+			pub.libraryIds(),
+			libraries == null ? List.of() : libraries,
+			JellyfinService.INSTANCE.lastStatus()
+		).writeToBuf(buf);
+		ServerPlayNetworking.send(player, ModNetworkPayloads.JellyfinConfigData.ID, buf);
 	}
 
 	private static void sendEmbyConfig(ServerPlayer player, List<JellyfinLibrary> libraries) {
@@ -467,19 +508,18 @@ public final class ServerNetworking {
 			return;
 		}
 		PixelReelConfig.EmbyPublicConfig pub = ConfigManager.get().embyPublicConfig();
-		ServerPlayNetworking.send(
-			player,
-			new ModNetworkPayloads.EmbyConfigData(
-				pub.url(),
-				pub.userId(),
-				pub.moviesEnabled(),
-				pub.tvShowsEnabled(),
-				pub.hasApiKey(),
-				pub.libraryIds(),
-				libraries == null ? List.of() : libraries,
-				EmbyService.INSTANCE.lastStatus()
-			)
-		);
+		FriendlyByteBuf buf = PacketByteBufs.create();
+		new ModNetworkPayloads.EmbyConfigData(
+			pub.url(),
+			pub.userId(),
+			pub.moviesEnabled(),
+			pub.tvShowsEnabled(),
+			pub.hasApiKey(),
+			pub.libraryIds(),
+			libraries == null ? List.of() : libraries,
+			EmbyService.INSTANCE.lastStatus()
+		).writeToBuf(buf);
+		ServerPlayNetworking.send(player, ModNetworkPayloads.EmbyConfigData.ID, buf);
 	}
 
 	private static void sendPlexConfig(ServerPlayer player, List<JellyfinLibrary> libraries) {
@@ -487,18 +527,17 @@ public final class ServerNetworking {
 			return;
 		}
 		PixelReelConfig.PlexPublicConfig pub = ConfigManager.get().plexPublicConfig();
-		ServerPlayNetworking.send(
-			player,
-			new ModNetworkPayloads.PlexConfigData(
-				pub.url(),
-				pub.moviesEnabled(),
-				pub.tvShowsEnabled(),
-				pub.hasToken(),
-				pub.libraryKeys(),
-				libraries == null ? List.of() : libraries,
-				PlexService.INSTANCE.lastStatus()
-			)
-		);
+		FriendlyByteBuf buf = PacketByteBufs.create();
+		new ModNetworkPayloads.PlexConfigData(
+			pub.url(),
+			pub.moviesEnabled(),
+			pub.tvShowsEnabled(),
+			pub.hasToken(),
+			pub.libraryKeys(),
+			libraries == null ? List.of() : libraries,
+			PlexService.INSTANCE.lastStatus()
+		).writeToBuf(buf);
+		ServerPlayNetworking.send(player, ModNetworkPayloads.PlexConfigData.ID, buf);
 	}
 
 	private static void handleRequestTunarrConfig(ServerPlayer player) {
@@ -516,7 +555,9 @@ public final class ServerNetworking {
 		}
 		PixelReelConfig.TunarrPublicConfig expanded = PixelReelConfig.expandTunarrUrls(payload.m3uUrl(), payload.xmltvUrl());
 		if (expanded.m3uUrl().isEmpty()) {
-			ServerPlayNetworking.send(player, new ModNetworkPayloads.ScreenNotice(BlockPos.ZERO, "message.pixelreel.tunarr.invalid_url"));
+			FriendlyByteBuf buf = PacketByteBufs.create();
+			new ModNetworkPayloads.ScreenNotice(BlockPos.ZERO, "message.pixelreel.tunarr.invalid_url").writeToBuf(buf);
+			ServerPlayNetworking.send(player, ModNetworkPayloads.ScreenNotice.ID, buf);
 			sendTunarrConfig(player);
 			return;
 		}
@@ -533,7 +574,9 @@ public final class ServerNetworking {
 			String key = status.reachable() && status.channelCount() > 0
 				? "message.pixelreel.tunarr.config_saved"
 				: "message.pixelreel.tunarr.config_failed";
-			ServerPlayNetworking.send(player, new ModNetworkPayloads.ScreenNotice(BlockPos.ZERO, key));
+			FriendlyByteBuf buf = PacketByteBufs.create();
+			new ModNetworkPayloads.ScreenNotice(BlockPos.ZERO, key).writeToBuf(buf);
+			ServerPlayNetworking.send(player, ModNetworkPayloads.ScreenNotice.ID, buf);
 		}));
 	}
 
@@ -542,10 +585,9 @@ public final class ServerNetworking {
 			return;
 		}
 		PixelReelConfig.TunarrPublicConfig pub = ConfigManager.get().tunarrPublicConfig();
-		ServerPlayNetworking.send(
-			player,
-			new ModNetworkPayloads.TunarrConfigData(pub.m3uUrl(), pub.xmltvUrl(), ChannelService.INSTANCE.lastStatus())
-		);
+		FriendlyByteBuf buf = PacketByteBufs.create();
+		new ModNetworkPayloads.TunarrConfigData(pub.m3uUrl(), pub.xmltvUrl(), ChannelService.INSTANCE.lastStatus()).writeToBuf(buf);
+		ServerPlayNetworking.send(player, ModNetworkPayloads.TunarrConfigData.ID, buf);
 	}
 
 	public static void sendMediaFeatures(ServerPlayer player) {
@@ -553,16 +595,15 @@ public final class ServerNetworking {
 			return;
 		}
 		PixelReelConfig.FeatureFlags flags = CinemaPermissions.featureFlags(player);
-		ServerPlayNetworking.send(
-			player,
-			ModNetworkPayloads.MediaFeatures.from(
-				flags,
-				JellyfinService.INSTANCE.lastStatus(),
-				EmbyService.INSTANCE.lastStatus(),
-				PlexService.INSTANCE.lastStatus(),
-				ChannelService.INSTANCE.lastStatus()
-			)
-		);
+		FriendlyByteBuf buf = PacketByteBufs.create();
+		ModNetworkPayloads.MediaFeatures.from(
+			flags,
+			JellyfinService.INSTANCE.lastStatus(),
+			EmbyService.INSTANCE.lastStatus(),
+			PlexService.INSTANCE.lastStatus(),
+			ChannelService.INSTANCE.lastStatus()
+		).writeToBuf(buf);
+		ServerPlayNetworking.send(player, ModNetworkPayloads.MediaFeatures.ID, buf);
 	}
 
 	public static void sendChannelList(ServerPlayer player, boolean forceRefresh) {
@@ -583,7 +624,9 @@ public final class ServerNetworking {
 		if (entries.size() > ModNetworkPayloads.MAX_CHANNELS) {
 			entries = entries.subList(0, ModNetworkPayloads.MAX_CHANNELS);
 		}
-		ServerPlayNetworking.send(player, new ModNetworkPayloads.ChannelList(status, entries));
+		FriendlyByteBuf buf = PacketByteBufs.create();
+		new ModNetworkPayloads.ChannelList(status, entries).writeToBuf(buf);
+		ServerPlayNetworking.send(player, ModNetworkPayloads.ChannelList.ID, buf);
 	}
 
 	private static void runOnServer(ServerPlayer player, Runnable action) {
@@ -612,7 +655,9 @@ public final class ServerNetworking {
 			case SUBTITLE_UNAVAILABLE -> "message.pixelreel.ondemand.subtitle_unavailable";
 		};
 		if (key != null) {
-			ServerPlayNetworking.send(player, new ModNetworkPayloads.ScreenNotice(pos, key));
+			FriendlyByteBuf buf = PacketByteBufs.create();
+			new ModNetworkPayloads.ScreenNotice(pos, key).writeToBuf(buf);
+			ServerPlayNetworking.send(player, ModNetworkPayloads.ScreenNotice.ID, buf);
 		}
 	}
 }

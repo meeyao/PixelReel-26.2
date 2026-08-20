@@ -1,22 +1,24 @@
 package com.pixelreel.jellyfin;
 
-import net.minecraft.network.RegistryFriendlyByteBuf;
-import net.minecraft.network.codec.ByteBufCodecs;
-import net.minecraft.network.codec.StreamCodec;
+import net.minecraft.network.FriendlyByteBuf;
 
 /** jellyfin folder */
 public record JellyfinLibrary(String id, String name, String collectionType) {
 	public static final int MAX_TEXT = 128;
 
-	public static final StreamCodec<RegistryFriendlyByteBuf, JellyfinLibrary> STREAM_CODEC = StreamCodec.composite(
-		ByteBufCodecs.stringUtf8(MAX_TEXT),
-		JellyfinLibrary::id,
-		ByteBufCodecs.stringUtf8(MAX_TEXT),
-		JellyfinLibrary::name,
-		ByteBufCodecs.stringUtf8(MAX_TEXT),
-		JellyfinLibrary::collectionType,
-		JellyfinLibrary::new
-	);
+	public void writeToBuf(FriendlyByteBuf buf) {
+		buf.writeUtf(this.id, MAX_TEXT);
+		buf.writeUtf(this.name, MAX_TEXT);
+		buf.writeUtf(this.collectionType, MAX_TEXT);
+	}
+
+	public static JellyfinLibrary readFromBuf(FriendlyByteBuf buf) {
+		return new JellyfinLibrary(
+			buf.readUtf(MAX_TEXT),
+			buf.readUtf(MAX_TEXT),
+			buf.readUtf(MAX_TEXT)
+		);
+	}
 
 	public boolean isMovies() {
 		return "movies".equalsIgnoreCase(this.collectionType);

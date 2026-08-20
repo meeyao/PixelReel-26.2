@@ -1,10 +1,14 @@
 package com.pixelreel.channels;
 
-import net.minecraft.network.RegistryFriendlyByteBuf;
-import net.minecraft.network.codec.StreamCodec;
+import net.minecraft.network.FriendlyByteBuf;
 
 public record ChannelEntry(Channel channel, GuideInfo guide) {
-	public static final StreamCodec<RegistryFriendlyByteBuf, ChannelEntry> STREAM_CODEC = StreamCodec.composite(
-		Channel.STREAM_CODEC, ChannelEntry::channel, GuideInfo.STREAM_CODEC, ChannelEntry::guide, ChannelEntry::new
-	);
+	public void writeToBuf(FriendlyByteBuf buf) {
+		this.channel.writeToBuf(buf);
+		this.guide.writeToBuf(buf);
+	}
+
+	public static ChannelEntry readFromBuf(FriendlyByteBuf buf) {
+		return new ChannelEntry(Channel.readFromBuf(buf), GuideInfo.readFromBuf(buf));
+	}
 }

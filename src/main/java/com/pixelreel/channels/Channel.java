@@ -1,8 +1,7 @@
 package com.pixelreel.channels;
 
 import java.util.Locale;
-import net.minecraft.network.RegistryFriendlyByteBuf;
-import net.minecraft.network.codec.StreamCodec;
+import net.minecraft.network.FriendlyByteBuf;
 import org.jetbrains.annotations.Nullable;
 
 /** one live channel from the playlist and guide */
@@ -10,19 +9,20 @@ public record Channel(String id, int number, String name, String logoUrl, String
 	public static final int MAX_TEXT = 128;
 	public static final int MAX_URL = 1024;
 
-	public static final StreamCodec<RegistryFriendlyByteBuf, Channel> STREAM_CODEC = StreamCodec.of(
-		(buf, value) -> {
-			buf.writeUtf(value.id, MAX_TEXT);
-			buf.writeVarInt(value.number);
-			buf.writeUtf(value.name, MAX_TEXT);
-			buf.writeUtf(value.logoUrl, MAX_URL);
-			buf.writeUtf(value.guideIconUrl, MAX_URL);
-			buf.writeUtf(value.streamUrl, MAX_URL);
-		},
-		buf -> new Channel(
+	public void writeToBuf(FriendlyByteBuf buf) {
+		buf.writeUtf(this.id, MAX_TEXT);
+		buf.writeVarInt(this.number);
+		buf.writeUtf(this.name, MAX_TEXT);
+		buf.writeUtf(this.logoUrl, MAX_URL);
+		buf.writeUtf(this.guideIconUrl, MAX_URL);
+		buf.writeUtf(this.streamUrl, MAX_URL);
+	}
+
+	public static Channel readFromBuf(FriendlyByteBuf buf) {
+		return new Channel(
 			buf.readUtf(MAX_TEXT), buf.readVarInt(), buf.readUtf(MAX_TEXT), buf.readUtf(MAX_URL), buf.readUtf(MAX_URL), buf.readUtf(MAX_URL)
-		)
-	);
+		);
+	}
 
 	public Channel {
 		id = truncate(id, MAX_TEXT);

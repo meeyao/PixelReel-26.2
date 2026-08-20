@@ -1,23 +1,26 @@
 package com.pixelreel.channels;
 
-import net.minecraft.network.RegistryFriendlyByteBuf;
-import net.minecraft.network.codec.ByteBufCodecs;
-import net.minecraft.network.codec.StreamCodec;
+import net.minecraft.network.FriendlyByteBuf;
 
 /** need this for channel health */
 public record LiveStatus(boolean configured, boolean reachable, int channelCount, String detail) {
 	public static final int MAX_DETAIL_LENGTH = 256;
-	public static final StreamCodec<RegistryFriendlyByteBuf, LiveStatus> STREAM_CODEC = StreamCodec.composite(
-		ByteBufCodecs.BOOL,
-		LiveStatus::configured,
-		ByteBufCodecs.BOOL,
-		LiveStatus::reachable,
-		ByteBufCodecs.VAR_INT,
-		LiveStatus::channelCount,
-		ByteBufCodecs.stringUtf8(MAX_DETAIL_LENGTH),
-		LiveStatus::detail,
-		LiveStatus::new
-	);
+
+	public void writeToBuf(FriendlyByteBuf buf) {
+		buf.writeBoolean(this.configured);
+		buf.writeBoolean(this.reachable);
+		buf.writeVarInt(this.channelCount);
+		buf.writeUtf(this.detail, MAX_DETAIL_LENGTH);
+	}
+
+	public static LiveStatus readFromBuf(FriendlyByteBuf buf) {
+		return new LiveStatus(
+			buf.readBoolean(),
+			buf.readBoolean(),
+			buf.readVarInt(),
+			buf.readUtf(MAX_DETAIL_LENGTH)
+		);
+	}
 
 	public LiveStatus {
 		if (detail == null) {

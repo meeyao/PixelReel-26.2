@@ -11,12 +11,9 @@ import com.pixelreel.jellyfin.JellyfinStatus;
 import com.pixelreel.ondemand.OnDemandProvider;
 import java.util.ArrayList;
 import java.util.List;
-import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry;
 import net.minecraft.core.BlockPos;
-import net.minecraft.network.RegistryFriendlyByteBuf;
-import net.minecraft.network.codec.ByteBufCodecs;
-import net.minecraft.network.codec.StreamCodec;
-import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
+import net.minecraft.network.FriendlyByteBuf;
+import net.minecraft.resources.ResourceLocation;
 
 public final class ModNetworkPayloads {
 	public static final int MAX_CHANNELS = 2048;
@@ -26,163 +23,128 @@ public final class ModNetworkPayloads {
 	private ModNetworkPayloads() {
 	}
 
-	public static void register() {
-		PayloadTypeRegistry<RegistryFriendlyByteBuf> serverbound = PayloadTypeRegistry.playC2S();
-		serverbound.register(ScreenControl.TYPE, ScreenControl.CODEC);
-		serverbound.register(ScreenTune.TYPE, ScreenTune.CODEC);
-		serverbound.register(RequestChannels.TYPE, RequestChannels.CODEC);
-		serverbound.register(RequestMediaFeatures.TYPE, RequestMediaFeatures.CODEC);
-		serverbound.register(RequestJellyfinBrowse.TYPE, RequestJellyfinBrowse.CODEC);
-		serverbound.register(RequestJellyfinChildren.TYPE, RequestJellyfinChildren.CODEC);
-		serverbound.register(ScreenPlayJellyfin.TYPE, ScreenPlayJellyfin.CODEC);
-		serverbound.register(ReportMediaEnded.TYPE, ReportMediaEnded.CODEC);
-		serverbound.register(RequestJellyfinConfig.TYPE, RequestJellyfinConfig.CODEC);
-		serverbound.register(UpdateJellyfinConfig.TYPE, UpdateJellyfinConfig.CODEC);
-		serverbound.register(RequestEmbyConfig.TYPE, RequestEmbyConfig.CODEC);
-		serverbound.register(UpdateEmbyConfig.TYPE, UpdateEmbyConfig.CODEC);
-		serverbound.register(RequestPlexConfig.TYPE, RequestPlexConfig.CODEC);
-		serverbound.register(UpdatePlexConfig.TYPE, UpdatePlexConfig.CODEC);
-		serverbound.register(RefreshJellyfinLibrary.TYPE, RefreshJellyfinLibrary.CODEC);
-		serverbound.register(RequestTunarrConfig.TYPE, RequestTunarrConfig.CODEC);
-		serverbound.register(UpdateTunarrConfig.TYPE, UpdateTunarrConfig.CODEC);
-		serverbound.register(UnequipPixelGlasses.TYPE, UnequipPixelGlasses.CODEC);
+	public record ChannelList(LiveStatus status, List<ChannelEntry> entries) {
+		public static final ResourceLocation ID = new ResourceLocation(PixelReel.MOD_ID, "channel_list");
 
-		PayloadTypeRegistry<RegistryFriendlyByteBuf> clientbound = PayloadTypeRegistry.playS2C();
-		clientbound.register(ChannelList.TYPE, ChannelList.CODEC);
-		clientbound.register(ScreenNotice.TYPE, ScreenNotice.CODEC);
-		clientbound.register(OpenMenu.TYPE, OpenMenu.CODEC);
-		clientbound.register(RetryDisplay.TYPE, RetryDisplay.CODEC);
-		clientbound.register(ShowClientStatus.TYPE, ShowClientStatus.CODEC);
-		clientbound.register(MediaFeatures.TYPE, MediaFeatures.CODEC);
-		clientbound.register(JellyfinBrowseResult.TYPE, JellyfinBrowseResult.CODEC);
-		clientbound.register(JellyfinChildrenResult.TYPE, JellyfinChildrenResult.CODEC);
-		clientbound.register(JellyfinConfigData.TYPE, JellyfinConfigData.CODEC);
-		clientbound.register(EmbyConfigData.TYPE, EmbyConfigData.CODEC);
-		clientbound.register(PlexConfigData.TYPE, PlexConfigData.CODEC);
-		clientbound.register(TunarrConfigData.TYPE, TunarrConfigData.CODEC);
-	}
+		public void writeToBuf(FriendlyByteBuf buf) {
+			this.status.writeToBuf(buf);
+			buf.writeVarInt(this.entries.size());
+			for (ChannelEntry entry : this.entries) {
+				entry.writeToBuf(buf);
+			}
+		}
 
-	public record ChannelList(LiveStatus status, List<ChannelEntry> entries) implements CustomPacketPayload {
-		public static final Type<ChannelList> TYPE = new Type<>(PixelReel.id("channel_list"));
-		public static final StreamCodec<RegistryFriendlyByteBuf, ChannelList> CODEC = StreamCodec.composite(
-			LiveStatus.STREAM_CODEC,
-			ChannelList::status,
-			ChannelEntry.STREAM_CODEC.apply(ByteBufCodecs.list(MAX_CHANNELS)),
-			ChannelList::entries,
-			ChannelList::new
-		);
-
-		@Override
-		public Type<? extends CustomPacketPayload> type() {
-			return TYPE;
+		public static ChannelList readFromBuf(FriendlyByteBuf buf) {
+			LiveStatus status = LiveStatus.readFromBuf(buf);
+			int count = buf.readVarInt();
+			List<ChannelEntry> entries = new ArrayList<>(count);
+			for (int i = 0; i < count; i++) {
+				entries.add(ChannelEntry.readFromBuf(buf));
+			}
+			return new ChannelList(status, entries);
 		}
 	}
 
-	public record RequestChannels(boolean forceRefresh) implements CustomPacketPayload {
-		public static final Type<RequestChannels> TYPE = new Type<>(PixelReel.id("request_channels"));
-		public static final StreamCodec<RegistryFriendlyByteBuf, RequestChannels> CODEC = StreamCodec.composite(
-			ByteBufCodecs.BOOL, RequestChannels::forceRefresh, RequestChannels::new
-		);
+	public record RequestChannels(boolean forceRefresh) {
+		public static final ResourceLocation ID = new ResourceLocation(PixelReel.MOD_ID, "request_channels");
 
-		@Override
-		public Type<? extends CustomPacketPayload> type() {
-			return TYPE;
+		public void writeToBuf(FriendlyByteBuf buf) {
+			buf.writeBoolean(this.forceRefresh);
+		}
+
+		public static RequestChannels readFromBuf(FriendlyByteBuf buf) {
+			return new RequestChannels(buf.readBoolean());
 		}
 	}
 
-	public record ScreenControl(BlockPos pos, ScreenAction action, float value) implements CustomPacketPayload {
-		public static final Type<ScreenControl> TYPE = new Type<>(PixelReel.id("screen_control"));
-		public static final StreamCodec<RegistryFriendlyByteBuf, ScreenControl> CODEC = StreamCodec.composite(
-			BlockPos.STREAM_CODEC,
-			ScreenControl::pos,
-			ByteBufCodecs.VAR_INT.map(ScreenAction::byIndex, Enum::ordinal),
-			ScreenControl::action,
-			ByteBufCodecs.FLOAT,
-			ScreenControl::value,
-			ScreenControl::new
-		);
+	public record ScreenControl(BlockPos pos, ScreenAction action, float value) {
+		public static final ResourceLocation ID = new ResourceLocation(PixelReel.MOD_ID, "screen_control");
 
-		@Override
-		public Type<? extends CustomPacketPayload> type() {
-			return TYPE;
+		public void writeToBuf(FriendlyByteBuf buf) {
+			buf.writeBlockPos(this.pos);
+			buf.writeVarInt(this.action.ordinal());
+			buf.writeFloat(this.value);
+		}
+
+		public static ScreenControl readFromBuf(FriendlyByteBuf buf) {
+			return new ScreenControl(
+				buf.readBlockPos(),
+				ScreenAction.byIndex(buf.readVarInt()),
+				buf.readFloat()
+			);
 		}
 	}
 
-	public record ScreenTune(BlockPos pos, String channelId) implements CustomPacketPayload {
-		public static final Type<ScreenTune> TYPE = new Type<>(PixelReel.id("screen_tune"));
-		public static final StreamCodec<RegistryFriendlyByteBuf, ScreenTune> CODEC = StreamCodec.composite(
-			BlockPos.STREAM_CODEC,
-			ScreenTune::pos,
-			ByteBufCodecs.stringUtf8(128),
-			ScreenTune::channelId,
-			ScreenTune::new
-		);
+	public record ScreenTune(BlockPos pos, String channelId) {
+		public static final ResourceLocation ID = new ResourceLocation(PixelReel.MOD_ID, "screen_tune");
 
-		@Override
-		public Type<? extends CustomPacketPayload> type() {
-			return TYPE;
+		public void writeToBuf(FriendlyByteBuf buf) {
+			buf.writeBlockPos(this.pos);
+			buf.writeUtf(this.channelId, 128);
+		}
+
+		public static ScreenTune readFromBuf(FriendlyByteBuf buf) {
+			return new ScreenTune(buf.readBlockPos(), buf.readUtf(128));
 		}
 	}
 
-	public record ScreenNotice(BlockPos pos, String translationKey) implements CustomPacketPayload {
-		public static final Type<ScreenNotice> TYPE = new Type<>(PixelReel.id("screen_notice"));
-		public static final StreamCodec<RegistryFriendlyByteBuf, ScreenNotice> CODEC = StreamCodec.composite(
-			BlockPos.STREAM_CODEC,
-			ScreenNotice::pos,
-			ByteBufCodecs.stringUtf8(128),
-			ScreenNotice::translationKey,
-			ScreenNotice::new
-		);
+	public record ScreenNotice(BlockPos pos, String translationKey) {
+		public static final ResourceLocation ID = new ResourceLocation(PixelReel.MOD_ID, "screen_notice");
 
-		@Override
-		public Type<? extends CustomPacketPayload> type() {
-			return TYPE;
+		public void writeToBuf(FriendlyByteBuf buf) {
+			buf.writeBlockPos(this.pos);
+			buf.writeUtf(this.translationKey, 128);
+		}
+
+		public static ScreenNotice readFromBuf(FriendlyByteBuf buf) {
+			return new ScreenNotice(buf.readBlockPos(), buf.readUtf(128));
 		}
 	}
 
-	public record OpenMenu(BlockPos pos) implements CustomPacketPayload {
-		public static final Type<OpenMenu> TYPE = new Type<>(PixelReel.id("open_menu"));
-		public static final StreamCodec<RegistryFriendlyByteBuf, OpenMenu> CODEC = StreamCodec.composite(
-			BlockPos.STREAM_CODEC, OpenMenu::pos, OpenMenu::new
-		);
+	public record OpenMenu(BlockPos pos) {
+		public static final ResourceLocation ID = new ResourceLocation(PixelReel.MOD_ID, "open_menu");
 
-		@Override
-		public Type<? extends CustomPacketPayload> type() {
-			return TYPE;
+		public void writeToBuf(FriendlyByteBuf buf) {
+			buf.writeBlockPos(this.pos);
+		}
+
+		public static OpenMenu readFromBuf(FriendlyByteBuf buf) {
+			return new OpenMenu(buf.readBlockPos());
 		}
 	}
 
-	public record RetryDisplay(BlockPos pos) implements CustomPacketPayload {
-		public static final Type<RetryDisplay> TYPE = new Type<>(PixelReel.id("retry_display"));
-		public static final StreamCodec<RegistryFriendlyByteBuf, RetryDisplay> CODEC = StreamCodec.composite(
-			BlockPos.STREAM_CODEC, RetryDisplay::pos, RetryDisplay::new
-		);
+	public record RetryDisplay(BlockPos pos) {
+		public static final ResourceLocation ID = new ResourceLocation(PixelReel.MOD_ID, "retry_display");
 
-		@Override
-		public Type<? extends CustomPacketPayload> type() {
-			return TYPE;
+		public void writeToBuf(FriendlyByteBuf buf) {
+			buf.writeBlockPos(this.pos);
+		}
+
+		public static RetryDisplay readFromBuf(FriendlyByteBuf buf) {
+			return new RetryDisplay(buf.readBlockPos());
 		}
 	}
 
-	public record ShowClientStatus(BlockPos pos) implements CustomPacketPayload {
-		public static final Type<ShowClientStatus> TYPE = new Type<>(PixelReel.id("show_client_status"));
-		public static final StreamCodec<RegistryFriendlyByteBuf, ShowClientStatus> CODEC = StreamCodec.composite(
-			BlockPos.STREAM_CODEC, ShowClientStatus::pos, ShowClientStatus::new
-		);
+	public record ShowClientStatus(BlockPos pos) {
+		public static final ResourceLocation ID = new ResourceLocation(PixelReel.MOD_ID, "show_client_status");
 
-		@Override
-		public Type<? extends CustomPacketPayload> type() {
-			return TYPE;
+		public void writeToBuf(FriendlyByteBuf buf) {
+			buf.writeBlockPos(this.pos);
+		}
+
+		public static ShowClientStatus readFromBuf(FriendlyByteBuf buf) {
+			return new ShowClientStatus(buf.readBlockPos());
 		}
 	}
 
-	public record RequestMediaFeatures() implements CustomPacketPayload {
-		public static final Type<RequestMediaFeatures> TYPE = new Type<>(PixelReel.id("request_media_features"));
-		public static final StreamCodec<RegistryFriendlyByteBuf, RequestMediaFeatures> CODEC = StreamCodec.unit(new RequestMediaFeatures());
+	public record RequestMediaFeatures() {
+		public static final ResourceLocation ID = new ResourceLocation(PixelReel.MOD_ID, "request_media_features");
 
-		@Override
-		public Type<? extends CustomPacketPayload> type() {
-			return TYPE;
+		public void writeToBuf(FriendlyByteBuf buf) {
+		}
+
+		public static RequestMediaFeatures readFromBuf(FriendlyByteBuf buf) {
+			return new RequestMediaFeatures();
 		}
 	}
 
@@ -208,33 +170,35 @@ public final class ModNetworkPayloads {
 		JellyfinStatus embyStatus,
 		JellyfinStatus plexStatus,
 		LiveStatus tunarrStatus
-	) implements CustomPacketPayload {
-		public static final Type<MediaFeatures> TYPE = new Type<>(PixelReel.id("media_features"));
-		public static final StreamCodec<RegistryFriendlyByteBuf, MediaFeatures> CODEC = StreamCodec.of(
-			(buf, value) -> {
-				buf.writeBoolean(value.canBrowse);
-				buf.writeBoolean(value.canPlayTunarr);
-				buf.writeBoolean(value.canPlayMovies);
-				buf.writeBoolean(value.canPlayShows);
-				buf.writeBoolean(value.canControlPlayback);
-				buf.writeBoolean(value.canConfigureTunarr);
-				buf.writeBoolean(value.canConfigureJellyfin);
-				buf.writeBoolean(value.canConfigureEmby);
-				buf.writeBoolean(value.canConfigurePlex);
-				buf.writeBoolean(value.canRefreshLibrary);
-				buf.writeBoolean(value.autoplayNextEpisode);
-				buf.writeBoolean(value.jellyfinMovies);
-				buf.writeBoolean(value.jellyfinShows);
-				buf.writeBoolean(value.embyMovies);
-				buf.writeBoolean(value.embyShows);
-				buf.writeBoolean(value.plexMovies);
-				buf.writeBoolean(value.plexShows);
-				JellyfinStatus.STREAM_CODEC.encode(buf, value.jellyfinStatus);
-				JellyfinStatus.STREAM_CODEC.encode(buf, value.embyStatus);
-				JellyfinStatus.STREAM_CODEC.encode(buf, value.plexStatus);
-				LiveStatus.STREAM_CODEC.encode(buf, value.tunarrStatus);
-			},
-			buf -> new MediaFeatures(
+	) {
+		public static final ResourceLocation ID = new ResourceLocation(PixelReel.MOD_ID, "media_features");
+
+		public void writeToBuf(FriendlyByteBuf buf) {
+			buf.writeBoolean(this.canBrowse);
+			buf.writeBoolean(this.canPlayTunarr);
+			buf.writeBoolean(this.canPlayMovies);
+			buf.writeBoolean(this.canPlayShows);
+			buf.writeBoolean(this.canControlPlayback);
+			buf.writeBoolean(this.canConfigureTunarr);
+			buf.writeBoolean(this.canConfigureJellyfin);
+			buf.writeBoolean(this.canConfigureEmby);
+			buf.writeBoolean(this.canConfigurePlex);
+			buf.writeBoolean(this.canRefreshLibrary);
+			buf.writeBoolean(this.autoplayNextEpisode);
+			buf.writeBoolean(this.jellyfinMovies);
+			buf.writeBoolean(this.jellyfinShows);
+			buf.writeBoolean(this.embyMovies);
+			buf.writeBoolean(this.embyShows);
+			buf.writeBoolean(this.plexMovies);
+			buf.writeBoolean(this.plexShows);
+			this.jellyfinStatus.writeToBuf(buf);
+			this.embyStatus.writeToBuf(buf);
+			this.plexStatus.writeToBuf(buf);
+			this.tunarrStatus.writeToBuf(buf);
+		}
+
+		public static MediaFeatures readFromBuf(FriendlyByteBuf buf) {
+			return new MediaFeatures(
 				buf.readBoolean(),
 				buf.readBoolean(),
 				buf.readBoolean(),
@@ -252,12 +216,12 @@ public final class ModNetworkPayloads {
 				buf.readBoolean(),
 				buf.readBoolean(),
 				buf.readBoolean(),
-				JellyfinStatus.STREAM_CODEC.decode(buf),
-				JellyfinStatus.STREAM_CODEC.decode(buf),
-				JellyfinStatus.STREAM_CODEC.decode(buf),
-				LiveStatus.STREAM_CODEC.decode(buf)
-			)
-		);
+				JellyfinStatus.readFromBuf(buf),
+				JellyfinStatus.readFromBuf(buf),
+				JellyfinStatus.readFromBuf(buf),
+				LiveStatus.readFromBuf(buf)
+			);
+		}
 
 		public static MediaFeatures from(
 			PixelReelConfig.FeatureFlags flags,
@@ -290,54 +254,43 @@ public final class ModNetworkPayloads {
 				tunarrStatus
 			);
 		}
+	}
 
-		@Override
-		public Type<? extends CustomPacketPayload> type() {
-			return TYPE;
+	public record RequestTunarrConfig() {
+		public static final ResourceLocation ID = new ResourceLocation(PixelReel.MOD_ID, "request_tunarr_config");
+
+		public void writeToBuf(FriendlyByteBuf buf) {
+		}
+
+		public static RequestTunarrConfig readFromBuf(FriendlyByteBuf buf) {
+			return new RequestTunarrConfig();
 		}
 	}
 
-	public record RequestTunarrConfig() implements CustomPacketPayload {
-		public static final Type<RequestTunarrConfig> TYPE = new Type<>(PixelReel.id("request_tunarr_config"));
-		public static final StreamCodec<RegistryFriendlyByteBuf, RequestTunarrConfig> CODEC = StreamCodec.unit(new RequestTunarrConfig());
+	public record UpdateTunarrConfig(String m3uUrl, String xmltvUrl) {
+		public static final ResourceLocation ID = new ResourceLocation(PixelReel.MOD_ID, "update_tunarr_config");
 
-		@Override
-		public Type<? extends CustomPacketPayload> type() {
-			return TYPE;
+		public void writeToBuf(FriendlyByteBuf buf) {
+			buf.writeUtf(this.m3uUrl, 512);
+			buf.writeUtf(this.xmltvUrl, 512);
+		}
+
+		public static UpdateTunarrConfig readFromBuf(FriendlyByteBuf buf) {
+			return new UpdateTunarrConfig(buf.readUtf(512), buf.readUtf(512));
 		}
 	}
 
-	public record UpdateTunarrConfig(String m3uUrl, String xmltvUrl) implements CustomPacketPayload {
-		public static final Type<UpdateTunarrConfig> TYPE = new Type<>(PixelReel.id("update_tunarr_config"));
-		public static final StreamCodec<RegistryFriendlyByteBuf, UpdateTunarrConfig> CODEC = StreamCodec.composite(
-			ByteBufCodecs.stringUtf8(512),
-			UpdateTunarrConfig::m3uUrl,
-			ByteBufCodecs.stringUtf8(512),
-			UpdateTunarrConfig::xmltvUrl,
-			UpdateTunarrConfig::new
-		);
+	public record TunarrConfigData(String m3uUrl, String xmltvUrl, LiveStatus status) {
+		public static final ResourceLocation ID = new ResourceLocation(PixelReel.MOD_ID, "tunarr_config_data");
 
-		@Override
-		public Type<? extends CustomPacketPayload> type() {
-			return TYPE;
+		public void writeToBuf(FriendlyByteBuf buf) {
+			buf.writeUtf(this.m3uUrl, 512);
+			buf.writeUtf(this.xmltvUrl, 512);
+			this.status.writeToBuf(buf);
 		}
-	}
 
-	public record TunarrConfigData(String m3uUrl, String xmltvUrl, LiveStatus status) implements CustomPacketPayload {
-		public static final Type<TunarrConfigData> TYPE = new Type<>(PixelReel.id("tunarr_config_data"));
-		public static final StreamCodec<RegistryFriendlyByteBuf, TunarrConfigData> CODEC = StreamCodec.composite(
-			ByteBufCodecs.stringUtf8(512),
-			TunarrConfigData::m3uUrl,
-			ByteBufCodecs.stringUtf8(512),
-			TunarrConfigData::xmltvUrl,
-			LiveStatus.STREAM_CODEC,
-			TunarrConfigData::status,
-			TunarrConfigData::new
-		);
-
-		@Override
-		public Type<? extends CustomPacketPayload> type() {
-			return TYPE;
+		public static TunarrConfigData readFromBuf(FriendlyByteBuf buf) {
+			return new TunarrConfigData(buf.readUtf(512), buf.readUtf(512), LiveStatus.readFromBuf(buf));
 		}
 	}
 
@@ -358,25 +311,25 @@ public final class ModNetworkPayloads {
 		String search,
 		int page,
 		boolean forceRefresh
-	) implements CustomPacketPayload {
-		public static final Type<RequestJellyfinBrowse> TYPE = new Type<>(PixelReel.id("request_jf_browse"));
-		public static final StreamCodec<RegistryFriendlyByteBuf, RequestJellyfinBrowse> CODEC = StreamCodec.composite(
-			ByteBufCodecs.VAR_INT.map(OnDemandProvider::byIndex, OnDemandProvider::ordinal),
-			RequestJellyfinBrowse::provider,
-			ByteBufCodecs.VAR_INT.map(BrowseKind::byIndex, Enum::ordinal),
-			RequestJellyfinBrowse::kind,
-			ByteBufCodecs.stringUtf8(128),
-			RequestJellyfinBrowse::search,
-			ByteBufCodecs.VAR_INT,
-			RequestJellyfinBrowse::page,
-			ByteBufCodecs.BOOL,
-			RequestJellyfinBrowse::forceRefresh,
-			RequestJellyfinBrowse::new
-		);
+	) {
+		public static final ResourceLocation ID = new ResourceLocation(PixelReel.MOD_ID, "request_jf_browse");
 
-		@Override
-		public Type<? extends CustomPacketPayload> type() {
-			return TYPE;
+		public void writeToBuf(FriendlyByteBuf buf) {
+			buf.writeVarInt(this.provider.ordinal());
+			buf.writeVarInt(this.kind.ordinal());
+			buf.writeUtf(this.search, 128);
+			buf.writeVarInt(this.page);
+			buf.writeBoolean(this.forceRefresh);
+		}
+
+		public static RequestJellyfinBrowse readFromBuf(FriendlyByteBuf buf) {
+			return new RequestJellyfinBrowse(
+				OnDemandProvider.byIndex(buf.readVarInt()),
+				BrowseKind.byIndex(buf.readVarInt()),
+				buf.readUtf(128),
+				buf.readVarInt(),
+				buf.readBoolean()
+			);
 		}
 	}
 
@@ -388,32 +341,35 @@ public final class ModNetworkPayloads {
 		int totalCount,
 		JellyfinStatus status,
 		List<JellyfinItemSummary> items
-	) implements CustomPacketPayload {
-		public static final Type<JellyfinBrowseResult> TYPE = new Type<>(PixelReel.id("jf_browse_result"));
-		public static final StreamCodec<RegistryFriendlyByteBuf, JellyfinBrowseResult> CODEC = StreamCodec.of(
-			(buf, value) -> {
-				buf.writeVarInt(value.provider.ordinal());
-				buf.writeVarInt(value.kind.ordinal());
-				buf.writeUtf(value.search, 128);
-				buf.writeVarInt(value.page);
-				buf.writeVarInt(value.totalCount);
-				JellyfinStatus.STREAM_CODEC.encode(buf, value.status);
-				JellyfinItemSummary.STREAM_CODEC.apply(ByteBufCodecs.list(MAX_JF_PAGE)).encode(buf, value.items);
-			},
-			buf -> new JellyfinBrowseResult(
-				OnDemandProvider.byIndex(buf.readVarInt()),
-				BrowseKind.byIndex(buf.readVarInt()),
-				buf.readUtf(128),
-				buf.readVarInt(),
-				buf.readVarInt(),
-				JellyfinStatus.STREAM_CODEC.decode(buf),
-				JellyfinItemSummary.STREAM_CODEC.apply(ByteBufCodecs.list(MAX_JF_PAGE)).decode(buf)
-			)
-		);
+	) {
+		public static final ResourceLocation ID = new ResourceLocation(PixelReel.MOD_ID, "jf_browse_result");
 
-		@Override
-		public Type<? extends CustomPacketPayload> type() {
-			return TYPE;
+		public void writeToBuf(FriendlyByteBuf buf) {
+			buf.writeVarInt(this.provider.ordinal());
+			buf.writeVarInt(this.kind.ordinal());
+			buf.writeUtf(this.search, 128);
+			buf.writeVarInt(this.page);
+			buf.writeVarInt(this.totalCount);
+			this.status.writeToBuf(buf);
+			buf.writeVarInt(this.items.size());
+			for (JellyfinItemSummary item : this.items) {
+				item.writeToBuf(buf);
+			}
+		}
+
+		public static JellyfinBrowseResult readFromBuf(FriendlyByteBuf buf) {
+			OnDemandProvider provider = OnDemandProvider.byIndex(buf.readVarInt());
+			BrowseKind kind = BrowseKind.byIndex(buf.readVarInt());
+			String search = buf.readUtf(128);
+			int page = buf.readVarInt();
+			int totalCount = buf.readVarInt();
+			JellyfinStatus status = JellyfinStatus.readFromBuf(buf);
+			int count = buf.readVarInt();
+			List<JellyfinItemSummary> items = new ArrayList<>(count);
+			for (int i = 0; i < count; i++) {
+				items.add(JellyfinItemSummary.readFromBuf(buf));
+			}
+			return new JellyfinBrowseResult(provider, kind, search, page, totalCount, status, items);
 		}
 	}
 
@@ -434,23 +390,23 @@ public final class ModNetworkPayloads {
 		ChildrenKind kind,
 		String parentId,
 		boolean forceRefresh
-	) implements CustomPacketPayload {
-		public static final Type<RequestJellyfinChildren> TYPE = new Type<>(PixelReel.id("request_jf_children"));
-		public static final StreamCodec<RegistryFriendlyByteBuf, RequestJellyfinChildren> CODEC = StreamCodec.composite(
-			ByteBufCodecs.VAR_INT.map(OnDemandProvider::byIndex, OnDemandProvider::ordinal),
-			RequestJellyfinChildren::provider,
-			ByteBufCodecs.VAR_INT.map(ChildrenKind::byIndex, Enum::ordinal),
-			RequestJellyfinChildren::kind,
-			ByteBufCodecs.stringUtf8(128),
-			RequestJellyfinChildren::parentId,
-			ByteBufCodecs.BOOL,
-			RequestJellyfinChildren::forceRefresh,
-			RequestJellyfinChildren::new
-		);
+	) {
+		public static final ResourceLocation ID = new ResourceLocation(PixelReel.MOD_ID, "request_jf_children");
 
-		@Override
-		public Type<? extends CustomPacketPayload> type() {
-			return TYPE;
+		public void writeToBuf(FriendlyByteBuf buf) {
+			buf.writeVarInt(this.provider.ordinal());
+			buf.writeVarInt(this.kind.ordinal());
+			buf.writeUtf(this.parentId, 128);
+			buf.writeBoolean(this.forceRefresh);
+		}
+
+		public static RequestJellyfinChildren readFromBuf(FriendlyByteBuf buf) {
+			return new RequestJellyfinChildren(
+				OnDemandProvider.byIndex(buf.readVarInt()),
+				ChildrenKind.byIndex(buf.readVarInt()),
+				buf.readUtf(128),
+				buf.readBoolean()
+			);
 		}
 	}
 
@@ -460,25 +416,31 @@ public final class ModNetworkPayloads {
 		String parentId,
 		JellyfinStatus status,
 		List<JellyfinItemSummary> items
-	) implements CustomPacketPayload {
-		public static final Type<JellyfinChildrenResult> TYPE = new Type<>(PixelReel.id("jf_children_result"));
-		public static final StreamCodec<RegistryFriendlyByteBuf, JellyfinChildrenResult> CODEC = StreamCodec.composite(
-			ByteBufCodecs.VAR_INT.map(OnDemandProvider::byIndex, OnDemandProvider::ordinal),
-			JellyfinChildrenResult::provider,
-			ByteBufCodecs.VAR_INT.map(ChildrenKind::byIndex, Enum::ordinal),
-			JellyfinChildrenResult::kind,
-			ByteBufCodecs.stringUtf8(128),
-			JellyfinChildrenResult::parentId,
-			JellyfinStatus.STREAM_CODEC,
-			JellyfinChildrenResult::status,
-			JellyfinItemSummary.STREAM_CODEC.apply(ByteBufCodecs.list(MAX_JF_CHILDREN)),
-			JellyfinChildrenResult::items,
-			JellyfinChildrenResult::new
-		);
+	) {
+		public static final ResourceLocation ID = new ResourceLocation(PixelReel.MOD_ID, "jf_children_result");
 
-		@Override
-		public Type<? extends CustomPacketPayload> type() {
-			return TYPE;
+		public void writeToBuf(FriendlyByteBuf buf) {
+			buf.writeVarInt(this.provider.ordinal());
+			buf.writeVarInt(this.kind.ordinal());
+			buf.writeUtf(this.parentId, 128);
+			this.status.writeToBuf(buf);
+			buf.writeVarInt(this.items.size());
+			for (JellyfinItemSummary item : this.items) {
+				item.writeToBuf(buf);
+			}
+		}
+
+		public static JellyfinChildrenResult readFromBuf(FriendlyByteBuf buf) {
+			OnDemandProvider provider = OnDemandProvider.byIndex(buf.readVarInt());
+			ChildrenKind kind = ChildrenKind.byIndex(buf.readVarInt());
+			String parentId = buf.readUtf(128);
+			JellyfinStatus status = JellyfinStatus.readFromBuf(buf);
+			int count = buf.readVarInt();
+			List<JellyfinItemSummary> items = new ArrayList<>(count);
+			for (int i = 0; i < count; i++) {
+				items.add(JellyfinItemSummary.readFromBuf(buf));
+			}
+			return new JellyfinChildrenResult(provider, kind, parentId, status, items);
 		}
 	}
 
@@ -487,49 +449,47 @@ public final class ModNetworkPayloads {
 		BlockPos pos,
 		String itemId,
 		long startPositionMs
-	) implements CustomPacketPayload {
-		public static final Type<ScreenPlayJellyfin> TYPE = new Type<>(PixelReel.id("screen_play_jf"));
-		public static final StreamCodec<RegistryFriendlyByteBuf, ScreenPlayJellyfin> CODEC = StreamCodec.composite(
-			ByteBufCodecs.VAR_INT.map(OnDemandProvider::byIndex, OnDemandProvider::ordinal),
-			ScreenPlayJellyfin::provider,
-			BlockPos.STREAM_CODEC,
-			ScreenPlayJellyfin::pos,
-			ByteBufCodecs.stringUtf8(128),
-			ScreenPlayJellyfin::itemId,
-			ByteBufCodecs.VAR_LONG,
-			ScreenPlayJellyfin::startPositionMs,
-			ScreenPlayJellyfin::new
-		);
+	) {
+		public static final ResourceLocation ID = new ResourceLocation(PixelReel.MOD_ID, "screen_play_jf");
 
-		@Override
-		public Type<? extends CustomPacketPayload> type() {
-			return TYPE;
+		public void writeToBuf(FriendlyByteBuf buf) {
+			buf.writeVarInt(this.provider.ordinal());
+			buf.writeBlockPos(this.pos);
+			buf.writeUtf(this.itemId, 128);
+			buf.writeVarLong(this.startPositionMs);
+		}
+
+		public static ScreenPlayJellyfin readFromBuf(FriendlyByteBuf buf) {
+			return new ScreenPlayJellyfin(
+				OnDemandProvider.byIndex(buf.readVarInt()),
+				buf.readBlockPos(),
+				buf.readUtf(128),
+				buf.readVarLong()
+			);
 		}
 	}
 
-	public record ReportMediaEnded(BlockPos pos, int channelEpoch) implements CustomPacketPayload {
-		public static final Type<ReportMediaEnded> TYPE = new Type<>(PixelReel.id("report_media_ended"));
-		public static final StreamCodec<RegistryFriendlyByteBuf, ReportMediaEnded> CODEC = StreamCodec.composite(
-			BlockPos.STREAM_CODEC,
-			ReportMediaEnded::pos,
-			ByteBufCodecs.VAR_INT,
-			ReportMediaEnded::channelEpoch,
-			ReportMediaEnded::new
-		);
+	public record ReportMediaEnded(BlockPos pos, int channelEpoch) {
+		public static final ResourceLocation ID = new ResourceLocation(PixelReel.MOD_ID, "report_media_ended");
 
-		@Override
-		public Type<? extends CustomPacketPayload> type() {
-			return TYPE;
+		public void writeToBuf(FriendlyByteBuf buf) {
+			buf.writeBlockPos(this.pos);
+			buf.writeVarInt(this.channelEpoch);
+		}
+
+		public static ReportMediaEnded readFromBuf(FriendlyByteBuf buf) {
+			return new ReportMediaEnded(buf.readBlockPos(), buf.readVarInt());
 		}
 	}
 
-	public record RequestJellyfinConfig() implements CustomPacketPayload {
-		public static final Type<RequestJellyfinConfig> TYPE = new Type<>(PixelReel.id("request_jf_config"));
-		public static final StreamCodec<RegistryFriendlyByteBuf, RequestJellyfinConfig> CODEC = StreamCodec.unit(new RequestJellyfinConfig());
+	public record RequestJellyfinConfig() {
+		public static final ResourceLocation ID = new ResourceLocation(PixelReel.MOD_ID, "request_jf_config");
 
-		@Override
-		public Type<? extends CustomPacketPayload> type() {
-			return TYPE;
+		public void writeToBuf(FriendlyByteBuf buf) {
+		}
+
+		public static RequestJellyfinConfig readFromBuf(FriendlyByteBuf buf) {
+			return new RequestJellyfinConfig();
 		}
 	}
 
@@ -541,50 +501,46 @@ public final class ModNetworkPayloads {
 		boolean tvShowsEnabled,
 		boolean autoplayNextEpisode,
 		List<String> libraryIds
-	) implements CustomPacketPayload {
-		public static final Type<UpdateJellyfinConfig> TYPE = new Type<>(PixelReel.id("update_jf_config"));
-		public static final StreamCodec<RegistryFriendlyByteBuf, UpdateJellyfinConfig> CODEC = StreamCodec.of(
-			(buf, value) -> {
-				buf.writeUtf(value.url, 256);
-				buf.writeUtf(value.apiKey, 512);
-				buf.writeUtf(value.userId, 128);
-				buf.writeBoolean(value.moviesEnabled);
-				buf.writeBoolean(value.tvShowsEnabled);
-				buf.writeBoolean(value.autoplayNextEpisode);
-				buf.writeVarInt(value.libraryIds.size());
-				for (String id : value.libraryIds) {
-					buf.writeUtf(id, 128);
-				}
-			},
-			buf -> {
-				String url = buf.readUtf(256);
-				String apiKey = buf.readUtf(512);
-				String userId = buf.readUtf(128);
-				boolean movies = buf.readBoolean();
-				boolean shows = buf.readBoolean();
-				boolean autoplay = buf.readBoolean();
-				int count = buf.readVarInt();
-				List<String> ids = new ArrayList<>(count);
-				for (int i = 0; i < count; i++) {
-					ids.add(buf.readUtf(128));
-				}
-				return new UpdateJellyfinConfig(url, apiKey, userId, movies, shows, autoplay, ids);
-			}
-		);
+	) {
+		public static final ResourceLocation ID = new ResourceLocation(PixelReel.MOD_ID, "update_jf_config");
 
-		@Override
-		public Type<? extends CustomPacketPayload> type() {
-			return TYPE;
+		public void writeToBuf(FriendlyByteBuf buf) {
+			buf.writeUtf(this.url, 256);
+			buf.writeUtf(this.apiKey, 512);
+			buf.writeUtf(this.userId, 128);
+			buf.writeBoolean(this.moviesEnabled);
+			buf.writeBoolean(this.tvShowsEnabled);
+			buf.writeBoolean(this.autoplayNextEpisode);
+			buf.writeVarInt(this.libraryIds.size());
+			for (String id : this.libraryIds) {
+				buf.writeUtf(id, 128);
+			}
+		}
+
+		public static UpdateJellyfinConfig readFromBuf(FriendlyByteBuf buf) {
+			String url = buf.readUtf(256);
+			String apiKey = buf.readUtf(512);
+			String userId = buf.readUtf(128);
+			boolean movies = buf.readBoolean();
+			boolean shows = buf.readBoolean();
+			boolean autoplay = buf.readBoolean();
+			int count = buf.readVarInt();
+			List<String> ids = new ArrayList<>(count);
+			for (int i = 0; i < count; i++) {
+				ids.add(buf.readUtf(128));
+			}
+			return new UpdateJellyfinConfig(url, apiKey, userId, movies, shows, autoplay, ids);
 		}
 	}
 
-	public record RefreshJellyfinLibrary() implements CustomPacketPayload {
-		public static final Type<RefreshJellyfinLibrary> TYPE = new Type<>(PixelReel.id("refresh_jf_library"));
-		public static final StreamCodec<RegistryFriendlyByteBuf, RefreshJellyfinLibrary> CODEC = StreamCodec.unit(new RefreshJellyfinLibrary());
+	public record RefreshJellyfinLibrary() {
+		public static final ResourceLocation ID = new ResourceLocation(PixelReel.MOD_ID, "refresh_jf_library");
 
-		@Override
-		public Type<? extends CustomPacketPayload> type() {
-			return TYPE;
+		public void writeToBuf(FriendlyByteBuf buf) {
+		}
+
+		public static RefreshJellyfinLibrary readFromBuf(FriendlyByteBuf buf) {
+			return new RefreshJellyfinLibrary();
 		}
 	}
 
@@ -598,54 +554,57 @@ public final class ModNetworkPayloads {
 		List<String> selectedLibraryIds,
 		List<JellyfinLibrary> availableLibraries,
 		JellyfinStatus status
-	) implements CustomPacketPayload {
-		public static final Type<JellyfinConfigData> TYPE = new Type<>(PixelReel.id("jf_config_data"));
-		public static final StreamCodec<RegistryFriendlyByteBuf, JellyfinConfigData> CODEC = StreamCodec.of(
-			(buf, value) -> {
-				buf.writeUtf(value.url, 256);
-				buf.writeUtf(value.userId, 128);
-				buf.writeBoolean(value.moviesEnabled);
-				buf.writeBoolean(value.tvShowsEnabled);
-				buf.writeBoolean(value.autoplayNextEpisode);
-				buf.writeBoolean(value.hasApiKey);
-				buf.writeVarInt(value.selectedLibraryIds.size());
-				for (String id : value.selectedLibraryIds) {
-					buf.writeUtf(id, 128);
-				}
-				JellyfinLibrary.STREAM_CODEC.apply(ByteBufCodecs.list(128)).encode(buf, value.availableLibraries);
-				JellyfinStatus.STREAM_CODEC.encode(buf, value.status);
-			},
-			buf -> {
-				String url = buf.readUtf(256);
-				String userId = buf.readUtf(128);
-				boolean movies = buf.readBoolean();
-				boolean shows = buf.readBoolean();
-				boolean autoplay = buf.readBoolean();
-				boolean hasKey = buf.readBoolean();
-				int count = buf.readVarInt();
-				List<String> selected = new ArrayList<>(count);
-				for (int i = 0; i < count; i++) {
-					selected.add(buf.readUtf(128));
-				}
-				List<JellyfinLibrary> libraries = JellyfinLibrary.STREAM_CODEC.apply(ByteBufCodecs.list(128)).decode(buf);
-				JellyfinStatus status = JellyfinStatus.STREAM_CODEC.decode(buf);
-				return new JellyfinConfigData(url, userId, movies, shows, autoplay, hasKey, selected, libraries, status);
-			}
-		);
+	) {
+		public static final ResourceLocation ID = new ResourceLocation(PixelReel.MOD_ID, "jf_config_data");
 
-		@Override
-		public Type<? extends CustomPacketPayload> type() {
-			return TYPE;
+		public void writeToBuf(FriendlyByteBuf buf) {
+			buf.writeUtf(this.url, 256);
+			buf.writeUtf(this.userId, 128);
+			buf.writeBoolean(this.moviesEnabled);
+			buf.writeBoolean(this.tvShowsEnabled);
+			buf.writeBoolean(this.autoplayNextEpisode);
+			buf.writeBoolean(this.hasApiKey);
+			buf.writeVarInt(this.selectedLibraryIds.size());
+			for (String id : this.selectedLibraryIds) {
+				buf.writeUtf(id, 128);
+			}
+			buf.writeVarInt(this.availableLibraries.size());
+			for (JellyfinLibrary lib : this.availableLibraries) {
+				lib.writeToBuf(buf);
+			}
+			this.status.writeToBuf(buf);
+		}
+
+		public static JellyfinConfigData readFromBuf(FriendlyByteBuf buf) {
+			String url = buf.readUtf(256);
+			String userId = buf.readUtf(128);
+			boolean movies = buf.readBoolean();
+			boolean shows = buf.readBoolean();
+			boolean autoplay = buf.readBoolean();
+			boolean hasKey = buf.readBoolean();
+			int count = buf.readVarInt();
+			List<String> selected = new ArrayList<>(count);
+			for (int i = 0; i < count; i++) {
+				selected.add(buf.readUtf(128));
+			}
+			int libCount = buf.readVarInt();
+			List<JellyfinLibrary> libraries = new ArrayList<>(libCount);
+			for (int i = 0; i < libCount; i++) {
+				libraries.add(JellyfinLibrary.readFromBuf(buf));
+			}
+			JellyfinStatus status = JellyfinStatus.readFromBuf(buf);
+			return new JellyfinConfigData(url, userId, movies, shows, autoplay, hasKey, selected, libraries, status);
 		}
 	}
 
-	public record RequestEmbyConfig() implements CustomPacketPayload {
-		public static final Type<RequestEmbyConfig> TYPE = new Type<>(PixelReel.id("request_emby_config"));
-		public static final StreamCodec<RegistryFriendlyByteBuf, RequestEmbyConfig> CODEC = StreamCodec.unit(new RequestEmbyConfig());
+	public record RequestEmbyConfig() {
+		public static final ResourceLocation ID = new ResourceLocation(PixelReel.MOD_ID, "request_emby_config");
 
-		@Override
-		public Type<? extends CustomPacketPayload> type() {
-			return TYPE;
+		public void writeToBuf(FriendlyByteBuf buf) {
+		}
+
+		public static RequestEmbyConfig readFromBuf(FriendlyByteBuf buf) {
+			return new RequestEmbyConfig();
 		}
 	}
 
@@ -656,38 +615,33 @@ public final class ModNetworkPayloads {
 		boolean moviesEnabled,
 		boolean tvShowsEnabled,
 		List<String> libraryIds
-	) implements CustomPacketPayload {
-		public static final Type<UpdateEmbyConfig> TYPE = new Type<>(PixelReel.id("update_emby_config"));
-		public static final StreamCodec<RegistryFriendlyByteBuf, UpdateEmbyConfig> CODEC = StreamCodec.of(
-			(buf, value) -> {
-				buf.writeUtf(value.url, 256);
-				buf.writeUtf(value.apiKey, 512);
-				buf.writeUtf(value.userId, 128);
-				buf.writeBoolean(value.moviesEnabled);
-				buf.writeBoolean(value.tvShowsEnabled);
-				buf.writeVarInt(value.libraryIds.size());
-				for (String id : value.libraryIds) {
-					buf.writeUtf(id, 128);
-				}
-			},
-			buf -> {
-				String url = buf.readUtf(256);
-				String apiKey = buf.readUtf(512);
-				String userId = buf.readUtf(128);
-				boolean movies = buf.readBoolean();
-				boolean shows = buf.readBoolean();
-				int count = buf.readVarInt();
-				List<String> ids = new ArrayList<>(count);
-				for (int i = 0; i < count; i++) {
-					ids.add(buf.readUtf(128));
-				}
-				return new UpdateEmbyConfig(url, apiKey, userId, movies, shows, ids);
-			}
-		);
+	) {
+		public static final ResourceLocation ID = new ResourceLocation(PixelReel.MOD_ID, "update_emby_config");
 
-		@Override
-		public Type<? extends CustomPacketPayload> type() {
-			return TYPE;
+		public void writeToBuf(FriendlyByteBuf buf) {
+			buf.writeUtf(this.url, 256);
+			buf.writeUtf(this.apiKey, 512);
+			buf.writeUtf(this.userId, 128);
+			buf.writeBoolean(this.moviesEnabled);
+			buf.writeBoolean(this.tvShowsEnabled);
+			buf.writeVarInt(this.libraryIds.size());
+			for (String id : this.libraryIds) {
+				buf.writeUtf(id, 128);
+			}
+		}
+
+		public static UpdateEmbyConfig readFromBuf(FriendlyByteBuf buf) {
+			String url = buf.readUtf(256);
+			String apiKey = buf.readUtf(512);
+			String userId = buf.readUtf(128);
+			boolean movies = buf.readBoolean();
+			boolean shows = buf.readBoolean();
+			int count = buf.readVarInt();
+			List<String> ids = new ArrayList<>(count);
+			for (int i = 0; i < count; i++) {
+				ids.add(buf.readUtf(128));
+			}
+			return new UpdateEmbyConfig(url, apiKey, userId, movies, shows, ids);
 		}
 	}
 
@@ -700,52 +654,55 @@ public final class ModNetworkPayloads {
 		List<String> selectedLibraryIds,
 		List<JellyfinLibrary> availableLibraries,
 		JellyfinStatus status
-	) implements CustomPacketPayload {
-		public static final Type<EmbyConfigData> TYPE = new Type<>(PixelReel.id("emby_config_data"));
-		public static final StreamCodec<RegistryFriendlyByteBuf, EmbyConfigData> CODEC = StreamCodec.of(
-			(buf, value) -> {
-				buf.writeUtf(value.url, 256);
-				buf.writeUtf(value.userId, 128);
-				buf.writeBoolean(value.moviesEnabled);
-				buf.writeBoolean(value.tvShowsEnabled);
-				buf.writeBoolean(value.hasApiKey);
-				buf.writeVarInt(value.selectedLibraryIds.size());
-				for (String id : value.selectedLibraryIds) {
-					buf.writeUtf(id, 128);
-				}
-				JellyfinLibrary.STREAM_CODEC.apply(ByteBufCodecs.list(128)).encode(buf, value.availableLibraries);
-				JellyfinStatus.STREAM_CODEC.encode(buf, value.status);
-			},
-			buf -> {
-				String url = buf.readUtf(256);
-				String userId = buf.readUtf(128);
-				boolean movies = buf.readBoolean();
-				boolean shows = buf.readBoolean();
-				boolean hasKey = buf.readBoolean();
-				int count = buf.readVarInt();
-				List<String> selected = new ArrayList<>(count);
-				for (int i = 0; i < count; i++) {
-					selected.add(buf.readUtf(128));
-				}
-				List<JellyfinLibrary> libraries = JellyfinLibrary.STREAM_CODEC.apply(ByteBufCodecs.list(128)).decode(buf);
-				JellyfinStatus status = JellyfinStatus.STREAM_CODEC.decode(buf);
-				return new EmbyConfigData(url, userId, movies, shows, hasKey, selected, libraries, status);
-			}
-		);
+	) {
+		public static final ResourceLocation ID = new ResourceLocation(PixelReel.MOD_ID, "emby_config_data");
 
-		@Override
-		public Type<? extends CustomPacketPayload> type() {
-			return TYPE;
+		public void writeToBuf(FriendlyByteBuf buf) {
+			buf.writeUtf(this.url, 256);
+			buf.writeUtf(this.userId, 128);
+			buf.writeBoolean(this.moviesEnabled);
+			buf.writeBoolean(this.tvShowsEnabled);
+			buf.writeBoolean(this.hasApiKey);
+			buf.writeVarInt(this.selectedLibraryIds.size());
+			for (String id : this.selectedLibraryIds) {
+				buf.writeUtf(id, 128);
+			}
+			buf.writeVarInt(this.availableLibraries.size());
+			for (JellyfinLibrary lib : this.availableLibraries) {
+				lib.writeToBuf(buf);
+			}
+			this.status.writeToBuf(buf);
+		}
+
+		public static EmbyConfigData readFromBuf(FriendlyByteBuf buf) {
+			String url = buf.readUtf(256);
+			String userId = buf.readUtf(128);
+			boolean movies = buf.readBoolean();
+			boolean shows = buf.readBoolean();
+			boolean hasKey = buf.readBoolean();
+			int count = buf.readVarInt();
+			List<String> selected = new ArrayList<>(count);
+			for (int i = 0; i < count; i++) {
+				selected.add(buf.readUtf(128));
+			}
+			int libCount = buf.readVarInt();
+			List<JellyfinLibrary> libraries = new ArrayList<>(libCount);
+			for (int i = 0; i < libCount; i++) {
+				libraries.add(JellyfinLibrary.readFromBuf(buf));
+			}
+			JellyfinStatus status = JellyfinStatus.readFromBuf(buf);
+			return new EmbyConfigData(url, userId, movies, shows, hasKey, selected, libraries, status);
 		}
 	}
 
-	public record RequestPlexConfig() implements CustomPacketPayload {
-		public static final Type<RequestPlexConfig> TYPE = new Type<>(PixelReel.id("request_plex_config"));
-		public static final StreamCodec<RegistryFriendlyByteBuf, RequestPlexConfig> CODEC = StreamCodec.unit(new RequestPlexConfig());
+	public record RequestPlexConfig() {
+		public static final ResourceLocation ID = new ResourceLocation(PixelReel.MOD_ID, "request_plex_config");
 
-		@Override
-		public Type<? extends CustomPacketPayload> type() {
-			return TYPE;
+		public void writeToBuf(FriendlyByteBuf buf) {
+		}
+
+		public static RequestPlexConfig readFromBuf(FriendlyByteBuf buf) {
+			return new RequestPlexConfig();
 		}
 	}
 
@@ -755,47 +712,42 @@ public final class ModNetworkPayloads {
 		boolean moviesEnabled,
 		boolean tvShowsEnabled,
 		List<String> libraryKeys
-	) implements CustomPacketPayload {
-		public static final Type<UpdatePlexConfig> TYPE = new Type<>(PixelReel.id("update_plex_config"));
-		public static final StreamCodec<RegistryFriendlyByteBuf, UpdatePlexConfig> CODEC = StreamCodec.of(
-			(buf, value) -> {
-				buf.writeUtf(value.url, 256);
-				buf.writeUtf(value.token, 512);
-				buf.writeBoolean(value.moviesEnabled);
-				buf.writeBoolean(value.tvShowsEnabled);
-				buf.writeVarInt(value.libraryKeys.size());
-				for (String key : value.libraryKeys) {
-					buf.writeUtf(key, 128);
-				}
-			},
-			buf -> {
-				String url = buf.readUtf(256);
-				String token = buf.readUtf(512);
-				boolean movies = buf.readBoolean();
-				boolean shows = buf.readBoolean();
-				int count = buf.readVarInt();
-				List<String> keys = new ArrayList<>(count);
-				for (int i = 0; i < count; i++) {
-					keys.add(buf.readUtf(128));
-				}
-				return new UpdatePlexConfig(url, token, movies, shows, keys);
-			}
-		);
+	) {
+		public static final ResourceLocation ID = new ResourceLocation(PixelReel.MOD_ID, "update_plex_config");
 
-		@Override
-		public Type<? extends CustomPacketPayload> type() {
-			return TYPE;
+		public void writeToBuf(FriendlyByteBuf buf) {
+			buf.writeUtf(this.url, 256);
+			buf.writeUtf(this.token, 512);
+			buf.writeBoolean(this.moviesEnabled);
+			buf.writeBoolean(this.tvShowsEnabled);
+			buf.writeVarInt(this.libraryKeys.size());
+			for (String key : this.libraryKeys) {
+				buf.writeUtf(key, 128);
+			}
+		}
+
+		public static UpdatePlexConfig readFromBuf(FriendlyByteBuf buf) {
+			String url = buf.readUtf(256);
+			String token = buf.readUtf(512);
+			boolean movies = buf.readBoolean();
+			boolean shows = buf.readBoolean();
+			int count = buf.readVarInt();
+			List<String> keys = new ArrayList<>(count);
+			for (int i = 0; i < count; i++) {
+				keys.add(buf.readUtf(128));
+			}
+			return new UpdatePlexConfig(url, token, movies, shows, keys);
 		}
 	}
 
-	public record UnequipPixelGlasses() implements CustomPacketPayload {
-		public static final Type<UnequipPixelGlasses> TYPE = new Type<>(PixelReel.id("unequip_pixel_glasses"));
-		public static final StreamCodec<RegistryFriendlyByteBuf, UnequipPixelGlasses> CODEC =
-			StreamCodec.unit(new UnequipPixelGlasses());
+	public record UnequipPixelGlasses() {
+		public static final ResourceLocation ID = new ResourceLocation(PixelReel.MOD_ID, "unequip_pixel_glasses");
 
-		@Override
-		public Type<? extends CustomPacketPayload> type() {
-			return TYPE;
+		public void writeToBuf(FriendlyByteBuf buf) {
+		}
+
+		public static UnequipPixelGlasses readFromBuf(FriendlyByteBuf buf) {
+			return new UnequipPixelGlasses();
 		}
 	}
 
@@ -807,40 +759,42 @@ public final class ModNetworkPayloads {
 		List<String> selectedLibraryKeys,
 		List<JellyfinLibrary> availableLibraries,
 		JellyfinStatus status
-	) implements CustomPacketPayload {
-		public static final Type<PlexConfigData> TYPE = new Type<>(PixelReel.id("plex_config_data"));
-		public static final StreamCodec<RegistryFriendlyByteBuf, PlexConfigData> CODEC = StreamCodec.of(
-			(buf, value) -> {
-				buf.writeUtf(value.url, 256);
-				buf.writeBoolean(value.moviesEnabled);
-				buf.writeBoolean(value.tvShowsEnabled);
-				buf.writeBoolean(value.hasToken);
-				buf.writeVarInt(value.selectedLibraryKeys.size());
-				for (String key : value.selectedLibraryKeys) {
-					buf.writeUtf(key, 128);
-				}
-				JellyfinLibrary.STREAM_CODEC.apply(ByteBufCodecs.list(128)).encode(buf, value.availableLibraries);
-				JellyfinStatus.STREAM_CODEC.encode(buf, value.status);
-			},
-			buf -> {
-				String url = buf.readUtf(256);
-				boolean movies = buf.readBoolean();
-				boolean shows = buf.readBoolean();
-				boolean hasToken = buf.readBoolean();
-				int count = buf.readVarInt();
-				List<String> selected = new ArrayList<>(count);
-				for (int i = 0; i < count; i++) {
-					selected.add(buf.readUtf(128));
-				}
-				List<JellyfinLibrary> libraries = JellyfinLibrary.STREAM_CODEC.apply(ByteBufCodecs.list(128)).decode(buf);
-				JellyfinStatus status = JellyfinStatus.STREAM_CODEC.decode(buf);
-				return new PlexConfigData(url, movies, shows, hasToken, selected, libraries, status);
-			}
-		);
+	) {
+		public static final ResourceLocation ID = new ResourceLocation(PixelReel.MOD_ID, "plex_config_data");
 
-		@Override
-		public Type<? extends CustomPacketPayload> type() {
-			return TYPE;
+		public void writeToBuf(FriendlyByteBuf buf) {
+			buf.writeUtf(this.url, 256);
+			buf.writeBoolean(this.moviesEnabled);
+			buf.writeBoolean(this.tvShowsEnabled);
+			buf.writeBoolean(this.hasToken);
+			buf.writeVarInt(this.selectedLibraryKeys.size());
+			for (String key : this.selectedLibraryKeys) {
+				buf.writeUtf(key, 128);
+			}
+			buf.writeVarInt(this.availableLibraries.size());
+			for (JellyfinLibrary lib : this.availableLibraries) {
+				lib.writeToBuf(buf);
+			}
+			this.status.writeToBuf(buf);
+		}
+
+		public static PlexConfigData readFromBuf(FriendlyByteBuf buf) {
+			String url = buf.readUtf(256);
+			boolean movies = buf.readBoolean();
+			boolean shows = buf.readBoolean();
+			boolean hasToken = buf.readBoolean();
+			int count = buf.readVarInt();
+			List<String> selected = new ArrayList<>(count);
+			for (int i = 0; i < count; i++) {
+				selected.add(buf.readUtf(128));
+			}
+			int libCount = buf.readVarInt();
+			List<JellyfinLibrary> libraries = new ArrayList<>(libCount);
+			for (int i = 0; i < libCount; i++) {
+				libraries.add(JellyfinLibrary.readFromBuf(buf));
+			}
+			JellyfinStatus status = JellyfinStatus.readFromBuf(buf);
+			return new PlexConfigData(url, movies, shows, hasToken, selected, libraries, status);
 		}
 	}
 }
